@@ -11,10 +11,6 @@ interface Props {
 
 export default function InvoicePrint(props: Props) {
   const template = props.settings.invoice_template || 'v3';
-
-  if (template === 'v4') {
-    return <InvoicePrintV4 {...props} />;
-  }
-
+  if (template === 'v4') return <InvoicePrintV4 {...props} />;
   return <InvoicePrintV3 {...props} />;
 }

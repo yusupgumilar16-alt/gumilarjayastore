@@ -12,17 +12,16 @@ interface Props {
 export default function InvoicePrintV4({ invoice, items, settings, publicUrl }: Props) {
   const primary = settings.invoice_primary_color || settings.brand_primary_color || '#2563eb';
   const accent = settings.invoice_accent_color || settings.brand_secondary_color || '#10b981';
+  const secondary = '#4b5563';
   const isPaid = invoice.status === 'dibayar';
   const showQr = settings.invoice_show_qr !== 'false';
   const logoSrc = settings.brand_logo_url || '';
-  const secondary = '#4b5563';
 
   const qrData = publicUrl || '';
   const qrUrl = qrData
-    ? `https://quickchart.io/qr?text=${encodeURIComponent(qrData)}&size=200&margin=1&ecLevel=M&dark=${primary.replace('#', '')}&light=ffffff`
+    ? `https://quickchart.io/qr?text=${encodeURIComponent(qrData)}&size=200&margin=1&ecLevel=M&dark=${primary.replace('#','')}&light=ffffff`
     : '';
 
-  // Warna status
   const statusColor: Record<string, { bg: string; text: string; label: string }> = {
     draft: { bg: '#f1f5f9', text: '#475569', label: 'DRAFT' },
     terkirim: { bg: '#fef3c7', text: '#92400e', label: 'TERKIRIM' },
@@ -33,12 +32,10 @@ export default function InvoicePrintV4({ invoice, items, settings, publicUrl }: 
 
   return (
     <div className="invoice-v4">
-      {/* ============ TOP CURVE DECORATION ============ */}
       <svg className="inv4-top-curve" viewBox="0 0 600 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M0,0 L0,80 Q150,120 300,80 T600,40 L600,0 Z" fill={primary} />
       </svg>
 
-      {/* ============ HEADER ============ */}
       <div className="inv4-header">
         <div className="inv4-brand">
           {logoSrc ? (
@@ -56,33 +53,22 @@ export default function InvoicePrintV4({ invoice, items, settings, publicUrl }: 
 
         <div className="inv4-contact">
           {settings.contact_whatsapp && (
-            <div className="inv4-contact-row">
-              <span className="inv4-contact-icon">📱</span>
-              <span>{settings.contact_whatsapp}</span>
-            </div>
+            <div className="inv4-contact-row"><span>📱</span><span>{settings.contact_whatsapp}</span></div>
           )}
           {settings.contact_email && (
-            <div className="inv4-contact-row">
-              <span className="inv4-contact-icon">✉</span>
-              <span>{settings.contact_email}</span>
-            </div>
+            <div className="inv4-contact-row"><span>✉</span><span>{settings.contact_email}</span></div>
           )}
           {settings.brand_address && (
-            <div className="inv4-contact-row">
-              <span className="inv4-contact-icon">📍</span>
-              <span>{settings.brand_address}</span>
-            </div>
+            <div className="inv4-contact-row"><span>📍</span><span>{settings.brand_address}</span></div>
           )}
         </div>
       </div>
 
-      {/* ============ BIG TITLE ============ */}
       <div className="inv4-title-wrap">
         <div className="inv4-title">INVOICE</div>
         <div className="inv4-title-line" style={{ background: primary }} />
       </div>
 
-      {/* ============ META ROW ============ */}
       <div className="inv4-meta">
         <div className="inv4-meta-col">
           <div className="inv4-meta-label">Invoice To</div>
@@ -114,17 +100,13 @@ export default function InvoicePrintV4({ invoice, items, settings, publicUrl }: 
           )}
           <div className="inv4-meta-item">
             <span className="inv4-meta-item-label">Status</span>
-            <span
-              className="inv4-status-pill"
-              style={{ background: st.bg, color: st.text }}
-            >
+            <span className="inv4-status-pill" style={{ background: st.bg, color: st.text }}>
               {st.label}
             </span>
           </div>
         </div>
       </div>
 
-      {/* ============ ITEM TABLE ============ */}
       <div className="inv4-table-wrap">
         <table className="inv4-table">
           <thead>
@@ -154,45 +136,25 @@ export default function InvoicePrintV4({ invoice, items, settings, publicUrl }: 
         </table>
       </div>
 
-      {/* ============ TOTALS + PAYMENT ============ */}
       <div className="inv4-summary">
         <div className="inv4-summary-left">
           <div className="inv4-section-label">Payment Info</div>
           <div className="inv4-payment-info">
             {settings.brand_bank_name && (
-              <div className="inv4-payment-row">
-                <span className="inv4-payment-key">Bank</span>
-                <span className="inv4-payment-val">{settings.brand_bank_name}</span>
-              </div>
+              <div className="inv4-payment-row"><span className="inv4-payment-key">Bank</span><span className="inv4-payment-val">{settings.brand_bank_name}</span></div>
             )}
             {settings.brand_bank_account && (
-              <div className="inv4-payment-row">
-                <span className="inv4-payment-key">Account #</span>
-                <span className="inv4-payment-val" style={{ fontFamily: 'SF Mono, Consolas, monospace', fontWeight: 700 }}>
-                  {settings.brand_bank_account}
-                </span>
-              </div>
+              <div className="inv4-payment-row"><span className="inv4-payment-key">Account #</span><span className="inv4-payment-val" style={{ fontFamily: 'monospace', fontWeight: 700 }}>{settings.brand_bank_account}</span></div>
             )}
             {settings.brand_bank_holder && (
-              <div className="inv4-payment-row">
-                <span className="inv4-payment-key">A/C Name</span>
-                <span className="inv4-payment-val">{settings.brand_bank_holder}</span>
-              </div>
-            )}
-            {settings.contact_whatsapp && (
-              <div className="inv4-payment-row">
-                <span className="inv4-payment-key">Konfirmasi</span>
-                <span className="inv4-payment-val">{settings.contact_whatsapp}</span>
-              </div>
+              <div className="inv4-payment-row"><span className="inv4-payment-key">A/C Name</span><span className="inv4-payment-val">{settings.brand_bank_holder}</span></div>
             )}
           </div>
 
           {showQr && qrUrl && (
             <div className="inv4-qr-wrap">
               <img src={qrUrl} alt="QR Code" className="inv4-qr" />
-              <div className="inv4-qr-caption">
-                {settings.invoice_qr_caption || 'Scan untuk lihat kwitansi online'}
-              </div>
+              <div className="inv4-qr-caption">{settings.invoice_qr_caption || 'Scan untuk lihat kwitansi online'}</div>
             </div>
           )}
         </div>
@@ -214,24 +176,17 @@ export default function InvoicePrintV4({ invoice, items, settings, publicUrl }: 
               <span className="inv4-summary-val">{formatRupiah(invoice.tax)}</span>
             </div>
           )}
-
           <div className="inv4-summary-total">
             <div className="inv4-summary-total-label" style={{ background: secondary }}>Total</div>
-            <div className="inv4-summary-total-value" style={{ background: primary }}>
-              {formatRupiah(invoice.total)}
-            </div>
+            <div className="inv4-summary-total-value" style={{ background: primary }}>{formatRupiah(invoice.total)}</div>
           </div>
-
           <div className="inv4-terbilang">
-            <div style={{ fontStyle: 'normal', fontWeight: 700, color: '#0b1220', marginBottom: 4 }}>
-              Terbilang:
-            </div>
+            <div style={{ fontWeight: 700, color: '#0b1220', marginBottom: 4 }}>Terbilang:</div>
             <div style={{ fontStyle: 'italic' }}>{terbilang(invoice.total)}</div>
           </div>
         </div>
       </div>
 
-      {/* ============ TERMS & SIGN ============ */}
       <div className="inv4-terms-sign">
         <div className="inv4-terms">
           <div className="inv4-section-label">Terms &amp; Conditions</div>
@@ -242,26 +197,18 @@ export default function InvoicePrintV4({ invoice, items, settings, publicUrl }: 
 
         <div className="inv4-sign">
           {isPaid && (
-            <div className="inv4-paid-stamp" style={{ borderColor: accent, color: accent }}>
-              LUNAS
-            </div>
+            <div className="inv4-paid-stamp" style={{ borderColor: accent, color: accent }}>LUNAS</div>
           )}
           <div className="inv4-sign-line" style={{ background: primary }} />
-          <div className="inv4-sign-name">
-            {settings.invoice_signature_name || settings.site_name}
-          </div>
-          <div className="inv4-sign-title">
-            {settings.invoice_signature_title || 'Admin'}
-          </div>
+          <div className="inv4-sign-name">{settings.invoice_signature_name || settings.site_name}</div>
+          <div className="inv4-sign-title">{settings.invoice_signature_title || 'Admin'}</div>
         </div>
       </div>
 
-      {/* ============ BOTTOM CURVE ============ */}
       <svg className="inv4-bottom-curve" viewBox="0 0 600 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M0,100 L0,40 Q150,0 300,40 T600,60 L600,100 Z" fill={primary} />
       </svg>
 
-      {/* ============ PUBLIC URL ============ */}
       {publicUrl && (
         <div className="inv4-public no-print">
           <div className="inv4-public-label">Link publik kwitansi ini:</div>

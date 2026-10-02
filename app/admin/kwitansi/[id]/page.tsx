@@ -6,6 +6,7 @@ import { getSettings } from '@/lib/settings';
 import InvoicePrint from '@/components/InvoicePrint';
 import InvoiceActions from '@/components/InvoiceActions';
 import PrintButton from '@/components/PrintButton';
+import TemplateSwitcher from '@/components/TemplateSwitcher';
 import type { Invoice, InvoiceItem } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -39,17 +40,15 @@ export default async function AdminInvoiceDetail({
     <>
       <style>{`
         @media print{
-          .admin-sidebar,.admin-topbar,.no-print{display:none!important}
+          .adm-sidebar,.adm-topbar,.no-print{display:none!important}
           body,html{background:#fff!important}
-          .admin-body{padding:0!important}
-          .admin-shell{background:#fff!important}
-          .invoice-print{box-shadow:none;border-radius:0;max-width:100%}
-          .admin-card-head{display:none!important}
+          .adm-body{padding:0!important}
+          .adm{background:#fff!important}
         }
       `}</style>
 
       <div className="admin-card-head no-print">
-        <h1 style={{ margin: 0 }}>Kwitansi {invoice.invoice_number}</h1>
+        <h1>Kwitansi {invoice.invoice_number}</h1>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Link href="/admin/kwitansi" className="btn btn-ghost">← Kembali</Link>
           <Link href={`/admin/kwitansi/${invoice.id}/edit`} className="btn btn-ghost">Edit</Link>
@@ -57,7 +56,9 @@ export default async function AdminInvoiceDetail({
         </div>
       </div>
 
-      <div className="admin-grid-2" style={{ gridTemplateColumns: '1fr 340px', alignItems: 'start' }}>
+      <TemplateSwitcher current={settings.invoice_template || 'v3'} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 340px', gap: 24, alignItems: 'start' }}>
         <div>
           <InvoicePrint
             invoice={invoice as Invoice}

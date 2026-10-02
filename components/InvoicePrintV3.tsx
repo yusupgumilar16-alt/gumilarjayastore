@@ -9,26 +9,6 @@ interface Props {
   publicUrl?: string;
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; bg: string; color: string; border: string }> = {
-    draft: { label: 'DRAFT', bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' },
-    terkirim: { label: 'TERKIRIM', bg: '#fef3c7', color: '#92400e', border: '#fcd34d' },
-    dibayar: { label: 'LUNAS', bg: '#d1fae5', color: '#065f46', border: '#34d399' },
-    batal: { label: 'BATAL', bg: '#fee2e2', color: '#991b1b', border: '#f87171' },
-  };
-  const s = map[status] || map.draft;
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 6,
-      padding: '7px 14px', borderRadius: 99,
-      fontSize: '.7rem', fontWeight: 700, letterSpacing: '.12em',
-      background: s.bg, color: s.color, border: `1px solid ${s.border}`,
-    }}>
-      {s.label}
-    </span>
-  );
-}
-
 export default function InvoicePrintV3({ invoice, items, settings, publicUrl }: Props) {
   const primary = settings.invoice_primary_color || settings.brand_primary_color || '#2563eb';
   const accent = settings.invoice_accent_color || settings.brand_secondary_color || '#10b981';
@@ -38,16 +18,24 @@ export default function InvoicePrintV3({ invoice, items, settings, publicUrl }: 
 
   const qrData = publicUrl || '';
   const qrUrl = qrData
-    ? `https://quickchart.io/qr?text=${encodeURIComponent(qrData)}&size=200&margin=1&ecLevel=M&dark=${primary.replace('#', '')}&light=ffffff`
+    ? `https://quickchart.io/qr?text=${encodeURIComponent(qrData)}&size=200&margin=1&ecLevel=M&dark=${primary.replace('#','')}&light=ffffff`
     : '';
+
+  const statusColor: Record<string, { bg: string; text: string }> = {
+    draft: { bg: '#f1f5f9', text: '#475569' },
+    terkirim: { bg: '#fef3c7', text: '#92400e' },
+    dibayar: { bg: '#d1fae5', text: '#065f46' },
+    batal: { bg: '#fee2e2', text: '#991b1b' },
+  };
+  const st = statusColor[invoice.status] || statusColor.draft;
+  const statusLabel = { draft: 'DRAFT', terkirim: 'TERKIRIM', dibayar: 'LUNAS', batal: 'BATAL' }[invoice.status] || 'DRAFT';
 
   return (
     <div className="invoice-v3">
       <div className="inv3-band" style={{ background: primary }}>
         <div className="inv3-band-left">
           {logoSrc ? (
-            <img src={logoSrc} alt="Logo" className="inv3-logo-img"
-              style={{ width: 60, height: 60, objectFit: 'contain', background: '#fff', borderRadius: 14, padding: 6 }} />
+            <img src={logoSrc} alt="Logo" style={{ width: 60, height: 60, objectFit: 'contain', background: '#fff', borderRadius: 14, padding: 6 }} />
           ) : (
             <div className="inv3-logo">{settings.brand_logo_text || 'GJ'}</div>
           )}
@@ -77,24 +65,22 @@ export default function InvoicePrintV3({ invoice, items, settings, publicUrl }: 
         </div>
 
         <div className="inv3-dates">
-          <div className="inv3-date-row">
-            <span>Tanggal</span>
-            <b>{formatDate(invoice.invoice_date)}</b>
-          </div>
+          <div className="inv3-date-row"><span>Tanggal</span><b>{formatDate(invoice.invoice_date)}</b></div>
           {invoice.due_date && (
-            <div className="inv3-date-row">
-              <span>Jatuh Tempo</span>
-              <b>{formatDate(invoice.due_date)}</b>
-            </div>
+            <div className="inv3-date-row"><span>Jatuh Tempo</span><b>{formatDate(invoice.due_date)}</b></div>
           )}
           {invoice.payment_method && (
-            <div className="inv3-date-row">
-              <span>Metode</span>
-              <b>{invoice.payment_method}</b>
-            </div>
+            <div className="inv3-date-row"><span>Metode</span><b>{invoice.payment_method}</b></div>
           )}
           <div className="inv3-status-wrap">
-            <StatusBadge status={invoice.status} />
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '7px 14px', borderRadius: 99,
+              fontSize: '.7rem', fontWeight: 700, letterSpacing: '.12em',
+              background: st.bg, color: st.text,
+            }}>
+              {statusLabel}
+            </span>
           </div>
         </div>
       </div>
@@ -104,25 +90,13 @@ export default function InvoicePrintV3({ invoice, items, settings, publicUrl }: 
         borderColor: isPaid ? '#86efac' : invoice.status === 'batal' ? '#fca5a5' : '#fcd34d',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{
-            fontSize: '1.6rem',
-            color: isPaid ? '#059669' : invoice.status === 'batal' ? '#dc2626' : '#d97706',
-          }}>
+          <span style={{ fontSize: '1.6rem', color: isPaid ? '#059669' : invoice.status === 'batal' ? '#dc2626' : '#d97706' }}>
             {isPaid ? '✓' : invoice.status === 'batal' ? '×' : '!'}
           </span>
           <div>
-            <div style={{
-              fontSize: '1.1rem', fontWeight: 800,
-              color: isPaid ? '#059669' : invoice.status === 'batal' ? '#dc2626' : '#d97706',
-              letterSpacing: '-.01em',
-            }}>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: isPaid ? '#059669' : invoice.status === 'batal' ? '#dc2626' : '#d97706' }}>
               {isPaid ? 'LUNAS' : invoice.status === 'batal' ? 'DIBATALKAN' : 'BELUM DIBAYAR'}
             </div>
-            {isPaid && (
-              <div style={{ fontSize: '.78rem', color: '#047857', marginTop: 2 }}>
-                Dibayar pada {formatDate(invoice.updated_at || invoice.invoice_date)}
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -141,7 +115,7 @@ export default function InvoicePrintV3({ invoice, items, settings, publicUrl }: 
           <tbody>
             {items.map((it, i) => (
               <tr key={it.id}>
-                <td style={{ color: '#94a3b8', fontWeight: 700, fontFamily: 'SF Mono, Consolas, monospace' }}>
+                <td style={{ color: '#94a3b8', fontWeight: 700, fontFamily: 'monospace' }}>
                   {String(i + 1).padStart(2, '0')}
                 </td>
                 <td><div className="inv3-item-name">{it.description}</div></td>
@@ -163,11 +137,10 @@ export default function InvoicePrintV3({ invoice, items, settings, publicUrl }: 
           <div className="inv3-thanks" style={{ color: primary }}>
             {settings.invoice_thank_you || 'Terima kasih atas kepercayaan Anda.'}
           </div>
-
           {showQr && qrUrl && (
             <div className="inv3-qr">
               <img src={qrUrl} alt="QR Code" style={{ width: 100, height: 100, borderRadius: 8 }} />
-              <div style={{ fontSize: '.68rem', color: '#64748b', marginTop: 6, maxWidth: 120, textAlign: 'center' }}>
+              <div style={{ fontSize: '.68rem', color: '#64748b', marginTop: 6, maxWidth: 120 }}>
                 {settings.invoice_qr_caption || 'Scan untuk lihat kwitansi online'}
               </div>
             </div>
@@ -175,21 +148,12 @@ export default function InvoicePrintV3({ invoice, items, settings, publicUrl }: 
         </div>
 
         <div className="inv3-totals">
-          <div className="inv3-total-row">
-            <span>Subtotal</span>
-            <b>{formatRupiah(invoice.subtotal)}</b>
-          </div>
+          <div className="inv3-total-row"><span>Subtotal</span><b>{formatRupiah(invoice.subtotal)}</b></div>
           {invoice.discount > 0 && (
-            <div className="inv3-total-row">
-              <span>Diskon</span>
-              <b style={{ color: '#dc2626' }}>− {formatRupiah(invoice.discount)}</b>
-            </div>
+            <div className="inv3-total-row"><span>Diskon</span><b style={{ color: '#dc2626' }}>− {formatRupiah(invoice.discount)}</b></div>
           )}
           {invoice.tax > 0 && (
-            <div className="inv3-total-row">
-              <span>Pajak</span>
-              <b>{formatRupiah(invoice.tax)}</b>
-            </div>
+            <div className="inv3-total-row"><span>Pajak</span><b>{formatRupiah(invoice.tax)}</b></div>
           )}
           <div className="inv3-grand" style={{ borderColor: primary }}>
             <span>TOTAL</span>
@@ -200,8 +164,7 @@ export default function InvoicePrintV3({ invoice, items, settings, publicUrl }: 
             fontSize: '.76rem', color: '#475569', fontStyle: 'italic',
             borderLeft: `3px solid ${primary}`, lineHeight: 1.5,
           }}>
-            <b style={{ fontStyle: 'normal', color: '#0b1220' }}>Terbilang:</b>
-            <br />
+            <b style={{ fontStyle: 'normal', color: '#0b1220' }}>Terbilang:</b><br />
             {terbilang(invoice.total)}
           </div>
         </div>
@@ -211,36 +174,24 @@ export default function InvoicePrintV3({ invoice, items, settings, publicUrl }: 
         <div className="inv3-payment">
           <div className="inv3-section-label">Instruksi Pembayaran</div>
           <div className="inv3-bank-box">
-            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: primary }}>
-              {settings.brand_bank_name || 'BCA'}
-            </div>
-            <div style={{ fontSize: '1.35rem', fontWeight: 800, letterSpacing: '.06em', fontFamily: 'SF Mono, Consolas, monospace', color: '#0b1220' }}>
+            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: primary }}>{settings.brand_bank_name || 'BCA'}</div>
+            <div style={{ fontSize: '1.35rem', fontWeight: 800, letterSpacing: '.06em', fontFamily: 'monospace' }}>
               {settings.brand_bank_account || '1234567890'}
             </div>
             <div style={{ fontSize: '.82rem', color: '#64748b', marginTop: 4 }}>
               a/n {settings.brand_bank_holder || settings.site_name}
             </div>
           </div>
-          {settings.contact_whatsapp && (
-            <div style={{ marginTop: 12, fontSize: '.8rem', color: '#64748b' }}>
-              Konfirmasi ke <b style={{ color: '#0b1220' }}>{settings.contact_whatsapp}</b>
-            </div>
-          )}
         </div>
 
         <div className="inv3-stamp-col">
           {isPaid && (
-            <div className="inv3-stamp" style={{ borderColor: accent, color: accent }}>
-              LUNAS
-            </div>
+            <div className="inv3-stamp" style={{ borderColor: accent, color: accent }}>LUNAS</div>
           )}
           <div className="inv3-signature">
             <div style={{ fontSize: '.72rem', color: '#64748b', marginBottom: 8 }}>Hormat kami,</div>
             <div style={{ borderTop: '1.5px solid #0b1220', paddingTop: 8, fontWeight: 700, fontSize: '.88rem' }}>
               {settings.invoice_signature_name || settings.site_name}
-            </div>
-            <div style={{ fontSize: '.72rem', color: '#64748b', marginTop: 2 }}>
-              {settings.invoice_signature_title || 'Admin'}
             </div>
           </div>
         </div>
@@ -250,13 +201,6 @@ export default function InvoicePrintV3({ invoice, items, settings, publicUrl }: 
         <span>● {settings.invoice_strip_text || 'Transaksi Aman, Hati Tenang'}</span>
         <span>{settings.contact_email || 'halo@gumilarjaya.store'}</span>
       </div>
-
-      {publicUrl && (
-        <div className="inv3-public no-print">
-          <div className="inv3-public-label">Link publik kwitansi ini:</div>
-          <div className="inv3-public-url">{publicUrl}</div>
-        </div>
-      )}
     </div>
   );
 }
