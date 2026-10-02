@@ -29,14 +29,12 @@ export default async function InvoicePublicPage({
     .order('id');
 
   const settings = await getSettings();
-  const inv = invoice as Invoice;
-  const list = (items || []) as InvoiceItem[];
 
   return (
     <>
       <style>{`
         body{background:#eef2f8;padding:40px 20px}
-        .toolbar-print{max-width:820px;margin:0 auto 20px;display:flex;justify-content:flex-end;gap:10px}
+        .toolbar-print{max-width:820px;margin:0 auto 20px;display:flex;justify-content:space-between;gap:10px}
         @media print{
           body{background:#fff;padding:0}
           .toolbar-print,.no-print{display:none!important}
@@ -45,17 +43,14 @@ export default async function InvoicePublicPage({
       `}</style>
 
       <div className="toolbar-print no-print">
+        <a href="/cek-kwitansi" className="btn btn-ghost">← Cek Kwitansi Lain</a>
         <PrintButton />
       </div>
 
       <InvoicePrint
-        invoice={inv}
-        items={list}
-        settings={{
-          site_name: settings.site_name || 'Gumilar Jaya Store',
-          contact_email: settings.contact_email || '',
-          contact_whatsapp: settings.contact_whatsapp || '',
-        }}
+        invoice={invoice as Invoice}
+        items={(items || []) as InvoiceItem[]}
+        settings={settings}
       />
     </>
   );

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getSettings } from '@/lib/settings';
 import InvoicePrint from '@/components/InvoicePrint';
@@ -29,6 +30,10 @@ export default async function AdminInvoiceDetail({
     .order('id');
 
   const settings = await getSettings();
+  const h = headers();
+  const host = h.get('host') || 'localhost:3000';
+  const proto = host.includes('localhost') ? 'http' : 'https';
+  const publicUrl = `${proto}://${host}/invoice/${invoice.public_token}`;
 
   return (
     <>
@@ -39,6 +44,7 @@ export default async function AdminInvoiceDetail({
           .admin-body{padding:0!important}
           .admin-shell{background:#fff!important}
           .invoice-print{box-shadow:none;border-radius:0;max-width:100%}
+          .admin-card-head{display:none!important}
         }
       `}</style>
 
@@ -47,30 +53,22 @@ export default async function AdminInvoiceDetail({
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Link href="/admin/kwitansi" className="btn btn-ghost">← Kembali</Link>
           <Link href={`/admin/kwitansi/${invoice.id}/edit`} className="btn btn-ghost">Edit</Link>
-          <a
-            href={`/invoice/${invoice.public_token}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-ghost"
-          >
-            Lihat Publik
-          </a>
           <PrintButton />
         </div>
       </div>
 
-      <InvoicePrint
-        invoice={invoice as Invoice}
-        items={(items || []) as InvoiceItem[]}
-        settings={{
-          site_name: settings.site_name || 'Gumilar Jaya Store',
-          contact_email: settings.contact_email || '',
-          contact_whatsapp: settings.contact_whatsapp || '',
-        }}
-      />
-
-      <div className="no-print" style={{ marginTop: 24 }}>
-        <InvoiceActions invoice={invoice as Invoice} />
+      <div className="admin-grid-2" style={{ gridTemplateColumns: '1fr 340px', alignItems: 'start' }}>
+        <div>
+          <InvoicePrint
+            invoice={invoice as Invoice}
+            items={(items || []) as InvoiceItem[]}
+            settings={settings}
+            publicUrl={publicUrl}
+          />
+        </div>
+        <div className="no-print">
+          <InvoiceActions invoice={invoice as Invoice} />
+        </div>
       </div>
     </>
   );

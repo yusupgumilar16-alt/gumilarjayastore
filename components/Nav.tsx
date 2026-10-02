@@ -17,6 +17,7 @@ export default function Nav({ settings }: { settings: SettingsMap }) {
           <Link href="/#kategori">Kategori</Link>
           <Link href="/#cerita">Cerita</Link>
           <Link href="/#faq">FAQ</Link>
+          <Link href="/cek-kwitansi">Cek Kwitansi</Link>
         </nav>
         <div className="nav-right">
           <Link href="/produk" className="btn btn-primary">
