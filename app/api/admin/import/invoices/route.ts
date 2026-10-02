@@ -10,6 +10,7 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 interface Row {
+  _rowNum?: number;
   external_ref: string;
   invoice_date: string;
   category: string;
@@ -24,7 +25,6 @@ interface Row {
   payment_time: string;
   period: string;
 }
-
 export async function POST(request: Request) {
   const s = createClient();
   const { data: { user } } = await s.auth.getUser();

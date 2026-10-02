@@ -7,6 +7,7 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 interface Row {
+  _rowNum?: number;
   id_number: string;
   name: string;
   address: string;
