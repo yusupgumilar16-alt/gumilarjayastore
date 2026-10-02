@@ -1,9 +1,13 @@
 'use client';
 
-export default function PrintButton() {
+export default function PrintButton({ label = 'Print / PDF' }: { label?: string }) {
   return (
-    <button type="button" className="btn btn-primary" onClick={() => window.print()}>
-      Print / PDF
+    <button
+      type="button"
+      className="btn btn-primary"
+      onClick={() => window.print()}
+    >
+      🖨 {label}
     </button>
   );
 }
