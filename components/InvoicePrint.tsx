@@ -1,5 +1,6 @@
 import type { Invoice, InvoiceItem } from '@/lib/types';
 import { formatRupiah, formatDate } from '@/lib/utils';
+import { terbilang } from '@/lib/terbilang';
 
 interface Props {
   invoice: Invoice & { customer_id_display?: string };
@@ -10,10 +11,10 @@ interface Props {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; bg: string; color: string; border: string; icon: string }> = {
-    draft: { label: 'DRAFT', bg: '#f1f5f9', color: '#475569', border: '#cbd5e1', icon: '○' },
-    terkirim: { label: 'TERKIRIM', bg: '#fef3c7', color: '#92400e', border: '#fcd34d', icon: '◐' },
-    dibayar: { label: 'LUNAS', bg: '#d1fae5', color: '#065f46', border: '#34d399', icon: '●' },
-    batal: { label: 'BATAL', bg: '#fee2e2', color: '#991b1b', border: '#f87171', icon: '×' },
+    draft: { label: 'DRAFT', bg: '#f1f5f9', color: '#475569', border: '#cbd5e1', icon: 'â—‹' },
+    terkirim: { label: 'TERKIRIM', bg: '#fef3c7', color: '#92400e', border: '#fcd34d', icon: 'â—' },
+    dibayar: { label: 'LUNAS', bg: '#d1fae5', color: '#065f46', border: '#34d399', icon: 'â—' },
+    batal: { label: 'BATAL', bg: '#fee2e2', color: '#991b1b', border: '#f87171', icon: 'Ã—' },
   };
   const s = map[status] || map.draft;
   return (
@@ -100,7 +101,7 @@ export default function InvoicePrint({ invoice, items, settings, publicUrl }: Pr
             fontSize: '1.6rem',
             color: isPaid ? '#059669' : invoice.status === 'batal' ? '#dc2626' : '#d97706',
           }}>
-            {isPaid ? '✓' : invoice.status === 'batal' ? '×' : '!'}
+            {isPaid ? 'âœ“' : invoice.status === 'batal' ? 'Ã—' : '!'}
           </span>
           <div>
             <div style={{
@@ -173,7 +174,7 @@ export default function InvoicePrint({ invoice, items, settings, publicUrl }: Pr
           {invoice.discount > 0 && (
             <div className="inv3-total-row">
               <span>Diskon</span>
-              <b style={{ color: '#dc2626' }}>− {formatRupiah(invoice.discount)}</b>
+              <b style={{ color: '#dc2626' }}>âˆ’ {formatRupiah(invoice.discount)}</b>
             </div>
           )}
           {invoice.tax > 0 && (
@@ -186,6 +187,9 @@ export default function InvoicePrint({ invoice, items, settings, publicUrl }: Pr
             <span>TOTAL</span>
             <span style={{ color: primary }}>{formatRupiah(invoice.total)}</span>
           </div>
+        <div style={{ marginTop: 12, padding: '10px 14px', background: '#f8fafc', borderRadius: 8, fontSize: '.78rem', color: '#475569', fontStyle: 'italic', borderLeft: '3px solid #2563eb' }}>
+          <b style={{ fontStyle: 'normal', color: '#0b1220', letterSpacing: '.02em' }}>Terbilang:</b> {terbilang(invoice.total)}
+        </div>
         </div>
       </div>
 
@@ -228,7 +232,7 @@ export default function InvoicePrint({ invoice, items, settings, publicUrl }: Pr
 
       {/* ============ FOOTER STRIP ============ */}
       <div className="inv3-strip">
-        <span>● {settings.invoice_strip_text || 'Transaksi Aman, Hati Tenang'}</span>
+        <span>â— {settings.invoice_strip_text || 'Transaksi Aman, Hati Tenang'}</span>
         <span>{settings.contact_email || 'halo@gumilarjaya.store'}</span>
       </div>
 

@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { parseNumber, parseDate, parseTime, normalizeCategory, detectIdType, idTypeLabel } from '@/lib/import-helpers';
+import {
+  parseNumber, parseDate, parseTime, normalizeCategory,
+  detectIdType, idTypeLabel,
+} from '@/lib/import-helpers';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -30,163 +33,267 @@ export async function POST(request: Request) {
   const body = await request.json();
   const rows: Row[] = body.rows || [];
   const filename = body.filename || '';
-  const dryRun = !!body.dryRun;
+  const batchId = body.batchId || `IMP-INV-${Date.now()}`;
+  const chunkIndex = body.chunkIndex ?? 0;
+  const isLastChunk = body.isLastChunk !== false;
   const autoCreateCustomer = body.autoCreateCustomer !== false;
 
   if (rows.length === 0) {
-    return NextResponse.json({ error: 'Tidak ada data untuk di-import' }, { status: 400 });
+    return NextResponse.json({ ok: true, batch_id: batchId, total: 0, success: 0, failed: 0, skipped: 0, errors: [] });
   }
 
   const admin = createAdminClient();
-  const batchId = `IMP-INV-${Date.now()}`;
   const errors: any[] = [];
   let success = 0;
   let skipped = 0;
   let failed = 0;
 
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const rowNum = i + 2;
+  // ---------- STEP 1: Pre-validate + dedup external_refs ----------
+  const externalRefs = rows
+    .map((r) => (r.external_ref || '').trim())
+    .filter((r) => r);
 
-    try {
-      // Validasi
-      if (!row.customer_name || !row.customer_name.trim()) {
-        errors.push({ row: rowNum, error: 'Nama pelanggan kosong', data: row });
-        failed++;
-        continue;
-      }
+  let existingRefs = new Set<string>();
+  if (externalRefs.length > 0) {
+    // Batch query — cek yang sudah ada sekaligus
+    const { data: existing } = await admin
+      .from('invoices')
+      .select('external_ref')
+      .in('external_ref', externalRefs);
+    existing?.forEach((e: any) => existingRefs.add(e.external_ref));
+  }
 
-      if (!row.invoice_date) {
-        errors.push({ row: rowNum, error: 'Tanggal kosong', data: row });
-        failed++;
-        continue;
-      }
+  // ---------- STEP 2: Pre-create customers (batch) ----------
+  const customerMap = new Map<string, string>(); // id_number → customer_id
 
-      // Skip kalau external_ref sudah ada
-      if (row.external_ref && row.external_ref.trim()) {
-        const { data: existing } = await admin
-          .from('invoices')
-          .select('id')
-          .eq('external_ref', row.external_ref.trim())
-          .maybeSingle();
-
-        if (existing) {
-          skipped++;
-          continue;
-        }
-      }
-
-      if (dryRun) {
-        success++;
-        continue;
-      }
-
-      // Cari / buat pelanggan
-      let customerId: string | null = null;
-      if (row.id_number && row.id_number.trim() && autoCreateCustomer) {
-        const { data: cid, error: cidErr } = await admin.rpc('find_or_create_customer', {
-          p_id_number: row.id_number.trim(),
-          p_name: row.customer_name.trim(),
-          p_address: row.address || '',
-          p_id_type: detectIdType(row.id_number),
-        });
-
-        if (!cidErr && cid) {
-          customerId = cid as unknown as string;
-        }
-      }
-
-      // Generate nomor kwitansi
-      const { data: numData } = await admin.rpc('next_invoice_number');
-      const invoiceNumber = (numData as unknown as string) || `GJS/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/0001`;
-
-      // Hitung total kalau tidak ada
-      const subtotal = parseNumber(row.subtotal);
-      const penalty = parseNumber(row.penalty);
-      const adminFee = parseNumber(row.admin_fee);
-      const total = parseNumber(row.total) || (subtotal + penalty + adminFee);
-
-      // Insert invoice
-      const { data: invoice, error: invErr } = await admin
-        .from('invoices')
-        .insert({
-          invoice_number: invoiceNumber,
-          customer_id: customerId,
-          customer_id_display: '',
-          customer_name: row.customer_name.trim(),
-          customer_address: (row.address || '').trim(),
-          customer_email: '',
-          customer_phone: '',
-          invoice_date: parseDate(row.invoice_date),
-          due_date: null,
-          subtotal,
-          discount: 0,
-          tax: 0,
-          total,
-          status: 'dibayar',
-          payment_method: '',
-          notes: row.period || '',
-          external_ref: (row.external_ref || '').trim(),
-          category: normalizeCategory(row.category || ''),
-          token_number: (row.token_number || '').trim(),
-          penalty,
-          admin_fee: adminFee,
-          payment_time: parseTime(row.payment_time),
-          period: (row.period || '').trim(),
-          import_batch: batchId,
-          imported_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (invErr || !invoice) {
-        errors.push({ row: rowNum, error: invErr?.message || 'Gagal simpan', data: row });
-        failed++;
-        continue;
-      }
-
-      // Insert items
-      const items: any[] = [];
-      if (subtotal > 0) {
-        items.push({
-          invoice_id: invoice.id,
-          description: row.period || normalizeCategory(row.category || ''),
-          qty: 1,
-          unit_price: subtotal,
-          subtotal,
+  if (autoCreateCustomer) {
+    // Kumpulkan unique (id_number, name, address) pairs
+    const uniqueCustomers = new Map<string, { id_number: string; name: string; address: string }>();
+    for (const row of rows) {
+      const idNum = (row.id_number || '').trim();
+      if (idNum && !uniqueCustomers.has(idNum)) {
+        uniqueCustomers.set(idNum, {
+          id_number: idNum,
+          name: row.customer_name.trim(),
+          address: row.address || '',
         });
       }
-      if (adminFee > 0) {
-        items.push({
-          invoice_id: invoice.id,
-          description: 'Biaya Admin',
-          qty: 1,
-          unit_price: adminFee,
-          subtotal: adminFee,
-        });
-      }
-      if (penalty > 0) {
-        items.push({
-          invoice_id: invoice.id,
-          description: 'Denda',
-          qty: 1,
-          unit_price: penalty,
-          subtotal: penalty,
-        });
+    }
+
+    // Batch query existing customers
+    const idNumbers = Array.from(uniqueCustomers.keys());
+    if (idNumbers.length > 0) {
+      const { data: existingIds } = await admin
+        .from('customer_ids')
+        .select('id_number, customer_id')
+        .in('id_number', idNumbers);
+
+      existingIds?.forEach((ei: any) => {
+        customerMap.set(ei.id_number, ei.customer_id);
+      });
+    }
+
+    // Buat pelanggan yang belum ada (batch insert)
+    const toCreate = Array.from(uniqueCustomers.values()).filter((c) => !customerMap.has(c.id_number));
+
+    if (toCreate.length > 0) {
+      // Ambil customer codes sekaligus
+      const customerCodes: string[] = [];
+      for (let i = 0; i < toCreate.length; i++) {
+        const { data: code } = await admin.rpc('next_customer_code');
+        customerCodes.push(code as unknown as string);
       }
 
-      if (items.length > 0) {
-        await admin.from('invoice_items').insert(items);
+      // Batch insert customers
+      const customerRows = toCreate.map((c, i) => ({
+        customer_code: customerCodes[i],
+        name: c.name,
+        email: '',
+        phone: '',
+        address: c.address,
+        notes: '',
+      }));
+
+      const { data: newCustomers, error: custErr } = await admin
+        .from('customers')
+        .insert(customerRows)
+        .select('id, name');
+
+      if (custErr) {
+        return NextResponse.json({ error: `Gagal buat pelanggan: ${custErr.message}` }, { status: 500 });
       }
 
-      success++;
-    } catch (err: any) {
-      errors.push({ row: rowNum, error: err.message || 'Error', rowData: row });
-      failed++;
+      // Map customer_id
+      const nameToId = new Map<string, string>();
+      newCustomers?.forEach((c: any) => nameToId.set(c.name, c.id));
+
+      // Batch insert customer_ids
+      const customerIdsRows = toCreate.map((c) => {
+        const idType = detectIdType(c.id_number);
+        return {
+          customer_id: nameToId.get(c.name)!,
+          id_type: idType,
+          id_label: idTypeLabel(idType),
+          id_number: c.id_number,
+          is_primary: true,
+        };
+      });
+
+      const { error: cidErr } = await admin.from('customer_ids').insert(customerIdsRows);
+      if (cidErr) {
+        return NextResponse.json({ error: `Gagal buat ID pelanggan: ${cidErr.message}` }, { status: 500 });
+      }
+
+      // Update customerMap
+      toCreate.forEach((c) => {
+        const cid = nameToId.get(c.name);
+        if (cid) customerMap.set(c.id_number, cid);
+      });
     }
   }
 
-  if (!dryRun) {
+  // ---------- STEP 3: Generate invoice numbers (batch) ----------
+  const invoiceNumbers: string[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const { data: num } = await admin.rpc('next_invoice_number');
+    invoiceNumbers.push((num as unknown as string) || `GJS/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(chunkIndex * 100 + i + 1).padStart(4, '0')}`);
+  }
+
+  // ---------- STEP 4: Batch insert invoices ----------
+  const invoiceRows: any[] = [];
+  const validRowIndexes: number[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNum = row._rowNum || (chunkIndex * 100 + i + 2);
+
+    // Validasi
+    if (!row.customer_name || !row.customer_name.trim()) {
+      errors.push({ row: rowNum, error: 'Nama pelanggan kosong' });
+      failed++;
+      continue;
+    }
+    if (!row.invoice_date) {
+      errors.push({ row: rowNum, error: 'Tanggal kosong' });
+      failed++;
+      continue;
+    }
+
+    // Skip duplikat
+    const extRef = (row.external_ref || '').trim();
+    if (extRef && existingRefs.has(extRef)) {
+      skipped++;
+      continue;
+    }
+
+    // Hitung total
+    const subtotal = parseNumber(row.subtotal);
+    const penalty = parseNumber(row.penalty);
+    const adminFee = parseNumber(row.admin_fee);
+    const total = parseNumber(row.total) || (subtotal + penalty + adminFee);
+
+    // Customer id
+    const idNum = (row.id_number || '').trim();
+    const customerId = idNum ? customerMap.get(idNum) || null : null;
+
+    invoiceRows.push({
+      invoice_number: invoiceNumbers[i],
+      customer_id: customerId,
+      customer_id_display: '',
+      customer_name: row.customer_name.trim(),
+      customer_address: (row.address || '').trim(),
+      customer_email: '',
+      customer_phone: '',
+      invoice_date: parseDate(row.invoice_date),
+      due_date: null,
+      subtotal,
+      discount: 0,
+      tax: 0,
+      total,
+      status: 'dibayar',
+      payment_method: '',
+      notes: row.period || '',
+      external_ref: extRef,
+      category: normalizeCategory(row.category || ''),
+      token_number: (row.token_number || '').trim(),
+      penalty,
+      admin_fee: adminFee,
+      payment_time: parseTime(row.payment_time),
+      period: (row.period || '').trim(),
+      import_batch: batchId,
+      imported_at: new Date().toISOString(),
+    });
+    validRowIndexes.push(i);
+  }
+
+  if (invoiceRows.length > 0) {
+    const { data: insertedInvoices, error: invErr } = await admin
+      .from('invoices')
+      .insert(invoiceRows)
+      .select('id');
+
+    if (invErr) {
+      return NextResponse.json({
+        ok: false,
+        error: invErr.message,
+        batch_id: batchId,
+        total: rows.length,
+        success: 0,
+        failed: rows.length,
+        skipped: 0,
+        errors: [{ row: 'ALL', error: invErr.message }],
+      }, { status: 500 });
+    }
+
+    // ---------- STEP 5: Batch insert invoice_items ----------
+    const itemRows: any[] = [];
+    for (let i = 0; i < invoiceRows.length; i++) {
+      const inv = invoiceRows[i];
+      const invoiceId = insertedInvoices?.[i]?.id;
+      if (!invoiceId) continue;
+
+      if (inv.subtotal > 0) {
+        itemRows.push({
+          invoice_id: invoiceId,
+          description: inv.notes || inv.category,
+          qty: 1,
+          unit_price: inv.subtotal,
+          subtotal: inv.subtotal,
+        });
+      }
+      if (inv.admin_fee > 0) {
+        itemRows.push({
+          invoice_id: invoiceId,
+          description: 'Biaya Admin',
+          qty: 1,
+          unit_price: inv.admin_fee,
+          subtotal: inv.admin_fee,
+        });
+      }
+      if (inv.penalty > 0) {
+        itemRows.push({
+          invoice_id: invoiceId,
+          description: 'Denda',
+          qty: 1,
+          unit_price: inv.penalty,
+          subtotal: inv.penalty,
+        });
+      }
+    }
+
+    if (itemRows.length > 0) {
+      const { error: itemErr } = await admin.from('invoice_items').insert(itemRows);
+      if (itemErr) {
+        console.error('Gagal insert items:', itemErr.message);
+        // Tidak fail keseluruhan, hanya catat
+      }
+    }
+
+    success = invoiceRows.length;
+  }
+
+  // ---------- STEP 6: Log hasil (hanya chunk terakhir) ----------
+  if (isLastChunk) {
     await admin.from('import_logs').insert({
       batch_id: batchId,
       import_type: 'invoices',
@@ -203,11 +310,11 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     batch_id: batchId,
-    dry_run: dryRun,
+    chunk_index: chunkIndex,
     total: rows.length,
     success,
     failed,
     skipped,
-    errors: errors.slice(0, 50),
+    errors: errors.slice(0, 20),
   });
 }

@@ -6,7 +6,6 @@ import * as XLSX from 'xlsx';
 import { findValue, parseNumber, parseDate, parseTime, normalizeCategory } from '@/lib/import-helpers';
 
 type Mode = 'select' | 'preview' | 'importing' | 'result';
-
 type ImportType = 'customers' | 'invoices';
 
 interface ParsedRow {
@@ -14,6 +13,8 @@ interface ParsedRow {
   _errors: string[];
   [key: string]: any;
 }
+
+const CHUNK_SIZE = 20; // 20 baris per request
 
 export default function ImportManager() {
   const router = useRouter();
@@ -23,7 +24,8 @@ export default function ImportManager() {
   const [filename, setFilename] = useState('');
   const [result, setResult] = useState<any>(null);
   const [autoCreate, setAutoCreate] = useState(true);
-  const [importing, setImporting] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0, success: 0, failed: 0, skipped: 0 });
+  const [currentChunkMsg, setCurrentChunkMsg] = useState('');
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -59,7 +61,7 @@ export default function ImportManager() {
     const paymentTime = findValue(r, 'JAM', 'TIME', 'WAKTU') || '';
     const period = String(findValue(r, 'PERIODE', 'PERIOD') || '').trim();
 
-    if (!name) errors.push('Nama pelanggan kosong');
+    if (!name) errors.push('Nama kosong');
     if (!invoiceDate) errors.push('Tanggal kosong');
 
     return {
@@ -90,7 +92,7 @@ export default function ImportManager() {
     const email = String(findValue(r, 'EMAIL') || '').trim();
     const idType = String(findValue(r, 'JENIS ID', 'TIPE ID', 'TYPE') || '').trim();
 
-    if (!name) errors.push('Nama pelanggan kosong');
+    if (!name) errors.push('Nama kosong');
 
     return {
       _rowNum: rowNum,
@@ -104,33 +106,122 @@ export default function ImportManager() {
     };
   }
 
+  async function postChunk(chunk: ParsedRow[], batchId: string, chunkIdx: number, isLast: boolean) {
+    const res = await fetch(`/api/admin/import/${importType}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rows: chunk,
+        filename,
+        batchId,
+        chunkIndex: chunkIdx,
+        isLastChunk: isLast,
+        autoCreateCustomer: autoCreate,
+        dryRun: false,
+      }),
+    });
+
+    const text = await res.text();
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(`Response tidak valid: ${text.slice(0, 200)}`);
+    }
+  }
+
   async function handleImport() {
     setMode('importing');
-    setImporting(true);
 
     const validRows = rows.filter((r) => r._errors.length === 0);
 
-    try {
-      const res = await fetch(`/api/admin/import/${importType}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rows: validRows,
-          filename,
-          autoCreateCustomer: autoCreate,
-          dryRun: false,
-        }),
-      });
-      const data = await res.json();
-      setResult(data);
+    if (validRows.length === 0) {
+      setResult({ ok: false, error: 'Tidak ada baris valid untuk di-import' });
       setMode('result');
-      router.refresh();
-    } catch (err: any) {
-      setResult({ ok: false, error: err.message });
-      setMode('result');
-    } finally {
-      setImporting(false);
+      return;
     }
+
+    const batchId = `IMP-${importType.toUpperCase()}-${Date.now()}`;
+    const chunks: ParsedRow[][] = [];
+    for (let i = 0; i < validRows.length; i += CHUNK_SIZE) {
+      chunks.push(validRows.slice(i, i + CHUNK_SIZE));
+    }
+
+    setProgress({ current: 0, total: validRows.length, success: 0, failed: 0, skipped: 0 });
+
+    let totalSuccess = 0;
+    let totalFailed = 0;
+    let totalSkipped = 0;
+    const allErrors: any[] = [];
+
+    for (let i = 0; i < chunks.length; i++) {
+      setCurrentChunkMsg(`Memproses baris ${i * CHUNK_SIZE + 1}–${Math.min((i + 1) * CHUNK_SIZE, validRows.length)} dari ${validRows.length}…`);
+
+      let attempt = 0;
+      let success = false;
+      let lastErr = '';
+
+      while (attempt < 3 && !success) {
+        try {
+          const data = await postChunk(
+            chunks[i].map((r) => ({ ...r, _rowNum: r._rowNum })),
+            batchId,
+            i,
+            i === chunks.length - 1
+          );
+
+          totalSuccess += data.success || 0;
+          totalFailed += data.failed || 0;
+          totalSkipped += data.skipped || 0;
+          if (data.errors) allErrors.push(...data.errors);
+
+          setProgress((p) => ({
+            ...p,
+            current: Math.min((i + 1) * CHUNK_SIZE, validRows.length),
+            success: totalSuccess,
+            failed: totalFailed,
+            skipped: totalSkipped,
+          }));
+
+          success = true;
+        } catch (err: any) {
+          attempt++;
+          lastErr = err.message || 'Error';
+          if (attempt < 3) {
+            await new Promise((r) => setTimeout(r, 1000 * attempt));
+          }
+        }
+      }
+
+      if (!success) {
+        totalFailed += chunks[i].length;
+        allErrors.push({ row: `Chunk ${i + 1}`, error: `Gagal setelah 3 percobaan: ${lastErr}` });
+        setProgress((p) => ({
+          ...p,
+          current: Math.min((i + 1) * CHUNK_SIZE, validRows.length),
+          failed: totalFailed,
+        }));
+      }
+
+      // Delay kecil untuk hindari rate limit
+      await new Promise((r) => setTimeout(r, 200));
+    }
+
+    setResult({
+      ok: true,
+      batch_id: batchId,
+      total: validRows.length,
+      success: totalSuccess,
+      failed: totalFailed,
+      skipped: totalSkipped,
+      errors: allErrors.slice(0, 50),
+    });
+    setMode('result');
+    router.refresh();
   }
 
   function downloadTemplate() {
@@ -138,35 +229,31 @@ export default function ImportManager() {
     let sheetName = 'Template';
 
     if (importType === 'invoices') {
-      template = [
-        {
-          'NO TRANSAKSI': 'JPAY/1234567890/SHP',
-          'TGL LUNAS': '2026-01-20',
-          'JENIS TRANSAKSI': 'LISTRIK PASCABAYAR',
-          'ID PEL': '532310573293',
-          'NAMA': 'SMPN IMBANAGARA',
-          'ALAMAT': 'Garut',
-          'NO TOKEN': '',
-          'NOMINAL': 300000,
-          'DENDA': 0,
-          'ADM': 2500,
-          'TOTAL BAYAR': 302500,
-          'jam': '22.41.00 WIB',
-          'PERIODE': 'TAGIHAN BULAN JANUARI 2026',
-        },
-      ];
+      template = [{
+        'NO TRANSAKSI': 'JPAY/1234567890/SHP',
+        'TGL LUNAS': '2026-01-20',
+        'JENIS TRANSAKSI': 'LISTRIK PASCABAYAR',
+        'ID PEL': '532310573293',
+        'NAMA': 'SMPN IMBANAGARA',
+        'ALAMAT': 'Garut',
+        'NO TOKEN': '',
+        'NOMINAL': 300000,
+        'DENDA': 0,
+        'ADM': 2500,
+        'TOTAL BAYAR': 302500,
+        'jam': '22.41.00 WIB',
+        'PERIODE': 'TAGIHAN BULAN JANUARI 2026',
+      }];
       sheetName = 'Import Transaksi';
     } else {
-      template = [
-        {
-          'ID PEL': '532310573293',
-          'NAMA': 'SMPN IMBANAGARA',
-          'ALAMAT': 'Garut, Jawa Barat',
-          'TELEPON': '08123456789',
-          'EMAIL': 'email@example.com',
-          'JENIS ID': 'pln',
-        },
-      ];
+      template = [{
+        'ID PEL': '532310573293',
+        'NAMA': 'SMPN IMBANAGARA',
+        'ALAMAT': 'Garut, Jawa Barat',
+        'TELEPON': '08123456789',
+        'EMAIL': 'email@example.com',
+        'JENIS ID': 'pln',
+      }];
       sheetName = 'Import Pelanggan';
     }
 
@@ -181,6 +268,7 @@ export default function ImportManager() {
     setRows([]);
     setResult(null);
     setFilename('');
+    setProgress({ current: 0, total: 0, success: 0, failed: 0, skipped: 0 });
   }
 
   const validCount = rows.filter((r) => r._errors.length === 0).length;
@@ -199,35 +287,27 @@ export default function ImportManager() {
           <button
             onClick={() => setImportType('invoices')}
             style={{
-              padding: 24,
-              borderRadius: 14,
+              padding: 24, borderRadius: 14,
               border: `2px solid ${importType === 'invoices' ? '#2563eb' : '#e2e8f0'}`,
               background: importType === 'invoices' ? '#eff6ff' : '#fff',
-              cursor: 'pointer',
-              textAlign: 'left',
+              cursor: 'pointer', textAlign: 'left',
             }}
           >
             <div style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 6 }}>📊 Import Transaksi</div>
-            <div style={{ fontSize: '.85rem', color: '#64748b' }}>
-              Data kwitansi dari Excel — auto-create pelanggan
-            </div>
+            <div style={{ fontSize: '.85rem', color: '#64748b' }}>Data kwitansi dari Excel — auto-create pelanggan</div>
           </button>
 
           <button
             onClick={() => setImportType('customers')}
             style={{
-              padding: 24,
-              borderRadius: 14,
+              padding: 24, borderRadius: 14,
               border: `2px solid ${importType === 'customers' ? '#2563eb' : '#e2e8f0'}`,
               background: importType === 'customers' ? '#eff6ff' : '#fff',
-              cursor: 'pointer',
-              textAlign: 'left',
+              cursor: 'pointer', textAlign: 'left',
             }}
           >
             <div style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 6 }}>👥 Import Pelanggan</div>
-            <div style={{ fontSize: '.85rem', color: '#64748b' }}>
-              Data pelanggan + ID pelanggan (PLN, PDAM, dll)
-            </div>
+            <div style={{ fontSize: '.85rem', color: '#64748b' }}>Data pelanggan + ID pelanggan</div>
           </button>
         </div>
 
@@ -235,9 +315,9 @@ export default function ImportManager() {
           <b style={{ color: '#0b1220' }}>Langkah:</b>
           <ol style={{ margin: '8px 0 0 20px', lineHeight: 1.8 }}>
             <li>Download template Excel</li>
-            <li>Isi sesuai kolom yang tersedia</li>
+            <li>Isi sesuai kolom</li>
             <li>Upload file, review preview</li>
-            <li>Klik "Proses Import"</li>
+            <li>Klik &quot;Proses Import&quot; (otomatis dipecah per 20 baris)</li>
           </ol>
         </div>
 
@@ -253,14 +333,7 @@ export default function ImportManager() {
             type="file"
             accept=".xlsx,.xls,.csv"
             onChange={handleFile}
-            style={{
-              width: '100%',
-              padding: 12,
-              border: '2px dashed #cbd5e1',
-              borderRadius: 12,
-              background: '#f8fafc',
-              cursor: 'pointer',
-            }}
+            style={{ width: '100%', padding: 12, border: '2px dashed #cbd5e1', borderRadius: 12, background: '#f8fafc', cursor: 'pointer' }}
           />
         </div>
       </div>
@@ -292,7 +365,7 @@ export default function ImportManager() {
           </div>
 
           <div style={{ fontSize: '.82rem', color: '#64748b', marginBottom: 12 }}>
-            File: <b>{filename}</b>
+            File: <b>{filename}</b> · Akan diproses dalam <b>{Math.ceil(validCount / CHUNK_SIZE)} batch</b> (20 baris/batch)
           </div>
 
           {importType === 'invoices' && (
@@ -309,19 +382,12 @@ export default function ImportManager() {
                   <th>Baris</th>
                   {importType === 'invoices' ? (
                     <>
-                      <th>Tgl</th>
-                      <th>Jenis</th>
-                      <th>ID Pel</th>
-                      <th>Nama</th>
-                      <th style={{ textAlign: 'right' }}>Total</th>
-                      <th>Status</th>
+                      <th>Tgl</th><th>Jenis</th><th>ID Pel</th><th>Nama</th>
+                      <th style={{ textAlign: 'right' }}>Total</th><th>Status</th>
                     </>
                   ) : (
                     <>
-                      <th>ID Pel</th>
-                      <th>Nama</th>
-                      <th>Alamat</th>
-                      <th>Status</th>
+                      <th>ID Pel</th><th>Nama</th><th>Alamat</th><th>Status</th>
                     </>
                   )}
                 </tr>
@@ -336,15 +402,11 @@ export default function ImportManager() {
                         <td>{r.category}</td>
                         <td><code style={{ fontSize: '.75rem' }}>{r.id_number}</code></td>
                         <td>{r.customer_name}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                          {r.total.toLocaleString('id-ID')}
-                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 600 }}>{r.total.toLocaleString('id-ID')}</td>
                         <td>
-                          {r._errors.length > 0 ? (
-                            <span style={{ color: '#dc2626', fontSize: '.75rem' }}>⚠ {r._errors.join(', ')}</span>
-                          ) : (
-                            <span style={{ color: '#059669', fontSize: '.75rem' }}>✓</span>
-                          )}
+                          {r._errors.length > 0
+                            ? <span style={{ color: '#dc2626', fontSize: '.75rem' }}>⚠ {r._errors.join(', ')}</span>
+                            : <span style={{ color: '#059669', fontSize: '.75rem' }}>✓</span>}
                         </td>
                       </>
                     ) : (
@@ -353,11 +415,9 @@ export default function ImportManager() {
                         <td>{r.name}</td>
                         <td style={{ fontSize: '.75rem', color: '#64748b' }}>{r.address}</td>
                         <td>
-                          {r._errors.length > 0 ? (
-                            <span style={{ color: '#dc2626', fontSize: '.75rem' }}>⚠ {r._errors.join(', ')}</span>
-                          ) : (
-                            <span style={{ color: '#059669', fontSize: '.75rem' }}>✓</span>
-                          )}
+                          {r._errors.length > 0
+                            ? <span style={{ color: '#dc2626', fontSize: '.75rem' }}>⚠ {r._errors.join(', ')}</span>
+                            : <span style={{ color: '#059669', fontSize: '.75rem' }}>✓</span>}
                         </td>
                       </>
                     )}
@@ -365,18 +425,13 @@ export default function ImportManager() {
                 ))}
               </tbody>
             </table>
-            {rows.length > 100 && (
-              <div style={{ padding: 12, textAlign: 'center', fontSize: '.78rem', color: '#64748b', background: '#f8fafc' }}>
-                Menampilkan 100 baris pertama dari {rows.length}
-              </div>
-            )}
           </div>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-          <button onClick={reset} className="btn btn-ghost" disabled={importing}>Batal</button>
-          <button onClick={handleImport} className="btn btn-primary" disabled={importing || validCount === 0}>
-            {importing ? 'Memproses…' : `Proses Import (${validCount} baris)`}
+          <button onClick={reset} className="btn btn-ghost">Batal</button>
+          <button onClick={handleImport} className="btn btn-primary" disabled={validCount === 0}>
+            Proses Import ({validCount} baris · {Math.ceil(validCount / CHUNK_SIZE)} batch)
           </button>
         </div>
       </>
@@ -384,11 +439,45 @@ export default function ImportManager() {
   }
 
   if (mode === 'importing') {
+    const pct = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
+
     return (
-      <div className="admin-card" style={{ textAlign: 'center', padding: 60 }}>
-        <div style={{ fontSize: '2.5rem', marginBottom: 16 }}>⏳</div>
-        <h3>Sedang meng-import…</h3>
-        <p style={{ color: '#64748b' }}>Mohon tunggu, jangan tutup halaman ini.</p>
+      <div className="admin-card" style={{ padding: 40 }}>
+        <h3 style={{ marginBottom: 20, textAlign: 'center' }}>⏳ Sedang meng-import…</h3>
+
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '.88rem' }}>
+            <span>{currentChunkMsg}</span>
+            <b>{pct}%</b>
+          </div>
+          <div style={{ height: 12, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${pct}%`,
+              background: 'linear-gradient(90deg,#2563eb,#10b981)',
+              transition: 'width .3s',
+            }} />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          <div style={{ padding: 14, background: '#f0fdf4', borderRadius: 10, textAlign: 'center' }}>
+            <div style={{ fontSize: '.7rem', color: '#059669', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '.1em' }}>Sukses</div>
+            <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#059669' }}>{progress.success}</div>
+          </div>
+          <div style={{ padding: 14, background: '#fffbeb', borderRadius: 10, textAlign: 'center' }}>
+            <div style={{ fontSize: '.7rem', color: '#d97706', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '.1em' }}>Dilewati</div>
+            <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#d97706' }}>{progress.skipped}</div>
+          </div>
+          <div style={{ padding: 14, background: progress.failed > 0 ? '#fef2f2' : '#f1f5f9', borderRadius: 10, textAlign: 'center' }}>
+            <div style={{ fontSize: '.7rem', color: progress.failed > 0 ? '#dc2626' : '#64748b', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '.1em' }}>Gagal</div>
+            <div style={{ fontSize: '1.3rem', fontWeight: 800, color: progress.failed > 0 ? '#dc2626' : '#64748b' }}>{progress.failed}</div>
+          </div>
+        </div>
+
+        <p style={{ textAlign: 'center', marginTop: 24, fontSize: '.82rem', color: '#64748b' }}>
+          Jangan tutup halaman ini sampai proses selesai.
+        </p>
       </div>
     );
   }
@@ -404,19 +493,19 @@ export default function ImportManager() {
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
                 <div style={{ padding: 16, background: '#f1f5f9', borderRadius: 12 }}>
-                  <div style={{ fontSize: '.7rem', color: '#64748b', letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700 }}>Total</div>
+                  <div style={{ fontSize: '.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '.1em' }}>Total</div>
                   <div style={{ fontSize: '1.5rem', fontWeight: 800 }}>{r.total}</div>
                 </div>
                 <div style={{ padding: 16, background: '#f0fdf4', borderRadius: 12 }}>
-                  <div style={{ fontSize: '.7rem', color: '#059669', letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700 }}>Sukses</div>
+                  <div style={{ fontSize: '.7rem', color: '#059669', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '.1em' }}>Sukses</div>
                   <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#059669' }}>{r.success}</div>
                 </div>
                 <div style={{ padding: 16, background: '#fffbeb', borderRadius: 12 }}>
-                  <div style={{ fontSize: '.7rem', color: '#d97706', letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700 }}>Dilewati</div>
+                  <div style={{ fontSize: '.7rem', color: '#d97706', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '.1em' }}>Dilewati</div>
                   <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#d97706' }}>{r.skipped}</div>
                 </div>
                 <div style={{ padding: 16, background: r.failed > 0 ? '#fef2f2' : '#f1f5f9', borderRadius: 12 }}>
-                  <div style={{ fontSize: '.7rem', color: r.failed > 0 ? '#dc2626' : '#64748b', letterSpacing: '.1em', textTransform: 'uppercase', fontWeight: 700 }}>Gagal</div>
+                  <div style={{ fontSize: '.7rem', color: r.failed > 0 ? '#dc2626' : '#64748b', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '.1em' }}>Gagal</div>
                   <div style={{ fontSize: '1.5rem', fontWeight: 800, color: r.failed > 0 ? '#dc2626' : '#64748b' }}>{r.failed}</div>
                 </div>
               </div>
@@ -432,8 +521,7 @@ export default function ImportManager() {
                     <table className="admin-table" style={{ fontSize: '.8rem' }}>
                       <thead>
                         <tr style={{ background: '#fef2f2' }}>
-                          <th>Baris</th>
-                          <th>Error</th>
+                          <th>Baris</th><th>Error</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -459,14 +547,10 @@ export default function ImportManager() {
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
           <button onClick={reset} className="btn btn-ghost">Import Lagi</button>
           {importType === 'invoices' && (
-            <button onClick={() => router.push('/admin/kwitansi')} className="btn btn-primary">
-              Lihat Kwitansi
-            </button>
+            <button onClick={() => router.push('/admin/kwitansi')} className="btn btn-primary">Lihat Kwitansi</button>
           )}
           {importType === 'customers' && (
-            <button onClick={() => router.push('/admin/pelanggan-customers')} className="btn btn-primary">
-              Lihat Pelanggan
-            </button>
+            <button onClick={() => router.push('/admin/pelanggan-customers')} className="btn btn-primary">Lihat Pelanggan</button>
           )}
         </div>
       </>

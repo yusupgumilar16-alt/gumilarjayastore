@@ -1,71 +1,3 @@
-export type ProductType = 'digital' | 'fisik';
-
-export interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  icon: string;
-  sort_order: number;
-  created_at: string;
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  slug: string;
-  category_id: string | null;
-  type: ProductType;
-  price: number;
-  discount_price: number | null;
-  description: string;
-  image: string | null;
-  images: string[];
-  stock: number;
-  sold: number;
-  rating: number;
-  download_url: string | null;
-  is_featured: boolean;
-  is_new: boolean;
-  created_at: string;
-  updated_at: string;
-  // optional join
-  category_name?: string;
-}
-
-export interface Testimonial {
-  id: string;
-  name: string;
-  city: string;
-  product_type: string;
-  content: string;
-  sort_order: number;
-  is_active: boolean;
-  created_at: string;
-}
-
-export interface Faq {
-  id: string;
-  question: string;
-  answer: string;
-  sort_order: number;
-  is_active: boolean;
-  created_at: string;
-}
-
-export interface Setting {
-  key: string;
-  value: string;
-  updated_at: string;
-}
-
-export interface Subscriber {
-  id: string;
-  email: string;
-  is_active: boolean;
-  created_at: string;
-}
-
 export interface Invoice {
   id: string;
   invoice_number: string;
@@ -83,70 +15,19 @@ export interface Invoice {
   payment_method: string;
   notes: string;
   public_token: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface InvoiceItem {
-  id: string;
-  invoice_id: string;
-  product_id: string | null;
-  description: string;
-  qty: number;
-  unit_price: number;
-  subtotal: number;
-}
-
-export interface Order {
-  id: string;
-  order_number: string;
-  customer_name: string;
-  customer_email: string;
-  customer_phone: string;
-  customer_address: string;
-  items: any[];
-  subtotal: number;
-  discount: number;
-  total: number;
-  status: string;
-  payment_method: string;
-  notes: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface SettingsMap {
-  [key: string]: string;
-}
-// ============ CUSTOMERS (V3) ============
-export type CustomerIdType = 'pln' | 'internet' | 'pdam' | 'telkom' | 'bpjs' | 'gas' | 'air' | 'lainnya';
-
-export interface CustomerId {
-  id: string;
-  customer_id: string;
-  id_type: CustomerIdType;
-  id_label: string;
-  id_number: string;
-  is_primary: boolean;
-  created_at: string;
-}
-
-export interface Customer {
-  id: string;
-  customer_code: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  notes: string;
-  is_archived: boolean;
-  created_at: string;
-  updated_at: string;
-  // optional join
-  ids?: CustomerId[];
-}
-
-export interface InvoiceWithCustomer extends Invoice {
+  // V4 - import fields
+  external_ref?: string;
+  category?: string;
+  token_number?: string;
+  penalty?: number;
+  admin_fee?: number;
+  payment_time?: string;
+  period?: string;
+  import_batch?: string;
+  imported_at?: string;
+  // V3 - customer relation
+  customer_id?: string;
   customer_id_display?: string;
-  customer?: Customer;
+  created_at: string;
+  updated_at: string;
 }

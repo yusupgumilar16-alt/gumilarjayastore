@@ -1,4 +1,6 @@
-﻿import { createAdminClient } from '@/lib/supabase/admin';
+import Link from 'next/link';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { formatDate } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Pelanggan' };
@@ -19,7 +21,7 @@ export default async function CustomersPage() {
       <div className="admin-card">
         {list.length === 0 ? (
           <p style={{ color: 'var(--muted)', padding: '40px 0', textAlign: 'center' }}>
-            Belum ada pelanggan. Pelanggan akan muncul di sini setelah Anda membuatnya lewat form kwitansi.
+            Belum ada pelanggan. Pelanggan akan muncul di sini setelah Anda membuatnya.
           </p>
         ) : (
           <table className="admin-table">
@@ -36,7 +38,11 @@ export default async function CustomersPage() {
               {list.map((c: any) => (
                 <tr key={c.id}>
                   <td><code style={{ fontSize: '.8rem' }}>{c.customer_code}</code></td>
-                  <td><b>{c.name}</b></td>
+                  <td>
+                    <Link href={`/admin/pelanggan-customers/${c.id}`} style={{ color: '#2563eb', fontWeight: 700 }}>
+                      {c.name}
+                    </Link>
+                  </td>
                   <td>
                     {c.email && <div style={{ fontSize: '.82rem' }}>{c.email}</div>}
                     {c.phone && <div style={{ fontSize: '.82rem', color: '#64748b' }}>{c.phone}</div>}
@@ -63,7 +69,7 @@ export default async function CustomersPage() {
                     )}
                   </td>
                   <td style={{ fontSize: '.82rem', color: '#64748b' }}>
-                    {new Date(c.created_at).toLocaleDateString('id-ID')}
+                    {formatDate(c.created_at)}
                   </td>
                 </tr>
               ))}
