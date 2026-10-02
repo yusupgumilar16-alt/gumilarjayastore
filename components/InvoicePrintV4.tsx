@@ -17,9 +17,9 @@ export default function InvoicePrintV4({ invoice, items, settings, publicUrl }: 
   const showQr = settings.invoice_show_qr !== 'false';
   const logoSrc = settings.brand_logo_url || '';
 
-  const qrData = publicUrl || '';
-  const qrUrl = qrData
-    ? `https://quickchart.io/qr?text=${encodeURIComponent(qrData)}&size=200&margin=1&ecLevel=M&dark=${primary.replace('#','')}&light=ffffff`
+  // QR CODE HITAM (default) — tanpa custom color
+  const qrUrl = publicUrl
+    ? `https://quickchart.io/qr?text=${encodeURIComponent(publicUrl)}&size=200&margin=1&ecLevel=M&dark=000000&light=ffffff`
     : '';
 
   const statusColor: Record<string, { bg: string; text: string; label: string }> = {
@@ -46,7 +46,7 @@ export default function InvoicePrintV4({ invoice, items, settings, publicUrl }: 
             </div>
           )}
           <div>
-            <div className="inv4-brand-name">{settings.site_name}</div>
+            <div className="inv4-brand-name">{settings.site_name || 'Gumilar Jaya Store'}</div>
             <div className="inv4-brand-tagline">{settings.brand_tagline || 'Melayani dengan aman & tenang'}</div>
           </div>
         </div>
@@ -124,9 +124,7 @@ export default function InvoicePrintV4({ invoice, items, settings, publicUrl }: 
                 <td style={{ textAlign: 'center', color: '#64748b', fontFamily: 'SF Mono, Consolas, monospace' }}>
                   {String(i + 1).padStart(2, '0')}
                 </td>
-                <td>
-                  <div className="inv4-item-desc">{it.description}</div>
-                </td>
+                <td><div className="inv4-item-desc">{it.description}</div></td>
                 <td className="inv4-td-num">{formatRupiah(it.unit_price).replace('Rp ', '')}</td>
                 <td style={{ textAlign: 'center' }}>{String(it.qty).padStart(2, '0')}</td>
                 <td className="inv4-td-num inv4-td-bold">{formatRupiah(it.subtotal).replace('Rp ', '')}</td>
@@ -153,28 +151,19 @@ export default function InvoicePrintV4({ invoice, items, settings, publicUrl }: 
 
           {showQr && qrUrl && (
             <div className="inv4-qr-wrap">
-              <img src={qrUrl} alt="QR Code" className="inv4-qr" />
+              <img src={qrUrl} alt="QR Code" className="inv4-qr" crossOrigin="anonymous" />
               <div className="inv4-qr-caption">{settings.invoice_qr_caption || 'Scan untuk lihat kwitansi online'}</div>
             </div>
           )}
         </div>
 
         <div className="inv4-summary-right">
-          <div className="inv4-summary-row">
-            <span>Sub Total</span>
-            <span className="inv4-summary-val">{formatRupiah(invoice.subtotal)}</span>
-          </div>
+          <div className="inv4-summary-row"><span>Sub Total</span><span className="inv4-summary-val">{formatRupiah(invoice.subtotal)}</span></div>
           {invoice.discount > 0 && (
-            <div className="inv4-summary-row">
-              <span>Discount</span>
-              <span className="inv4-summary-val" style={{ color: '#dc2626' }}>− {formatRupiah(invoice.discount)}</span>
-            </div>
+            <div className="inv4-summary-row"><span>Discount</span><span className="inv4-summary-val" style={{ color: '#dc2626' }}>− {formatRupiah(invoice.discount)}</span></div>
           )}
           {invoice.tax > 0 && (
-            <div className="inv4-summary-row">
-              <span>Tax</span>
-              <span className="inv4-summary-val">{formatRupiah(invoice.tax)}</span>
-            </div>
+            <div className="inv4-summary-row"><span>Tax</span><span className="inv4-summary-val">{formatRupiah(invoice.tax)}</span></div>
           )}
           <div className="inv4-summary-total">
             <div className="inv4-summary-total-label" style={{ background: secondary }}>Total</div>

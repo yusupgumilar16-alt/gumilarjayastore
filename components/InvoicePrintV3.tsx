@@ -16,19 +16,18 @@ export default function InvoicePrintV3({ invoice, items, settings, publicUrl }: 
   const showQr = settings.invoice_show_qr !== 'false';
   const logoSrc = settings.brand_logo_url || '';
 
-  const qrData = publicUrl || '';
-  const qrUrl = qrData
-    ? `https://quickchart.io/qr?text=${encodeURIComponent(qrData)}&size=200&margin=1&ecLevel=M&dark=${primary.replace('#','')}&light=ffffff`
+  // QR CODE HITAM
+  const qrUrl = publicUrl
+    ? `https://quickchart.io/qr?text=${encodeURIComponent(publicUrl)}&size=200&margin=1&ecLevel=M&dark=000000&light=ffffff`
     : '';
 
-  const statusColor: Record<string, { bg: string; text: string }> = {
-    draft: { bg: '#f1f5f9', text: '#475569' },
-    terkirim: { bg: '#fef3c7', text: '#92400e' },
-    dibayar: { bg: '#d1fae5', text: '#065f46' },
-    batal: { bg: '#fee2e2', text: '#991b1b' },
+  const statusColor: Record<string, { bg: string; text: string; label: string }> = {
+    draft: { bg: '#f1f5f9', text: '#475569', label: 'DRAFT' },
+    terkirim: { bg: '#fef3c7', text: '#92400e', label: 'TERKIRIM' },
+    dibayar: { bg: '#d1fae5', text: '#065f46', label: 'LUNAS' },
+    batal: { bg: '#fee2e2', text: '#991b1b', label: 'BATAL' },
   };
   const st = statusColor[invoice.status] || statusColor.draft;
-  const statusLabel = { draft: 'DRAFT', terkirim: 'TERKIRIM', dibayar: 'LUNAS', batal: 'BATAL' }[invoice.status] || 'DRAFT';
 
   return (
     <div className="invoice-v3">
@@ -40,7 +39,7 @@ export default function InvoicePrintV3({ invoice, items, settings, publicUrl }: 
             <div className="inv3-logo">{settings.brand_logo_text || 'GJ'}</div>
           )}
           <div>
-            <div className="inv3-brand">{settings.site_name}</div>
+            <div className="inv3-brand">{settings.site_name || 'Gumilar Jaya Store'}</div>
             <div className="inv3-tagline">{settings.brand_tagline || 'Melayani dengan aman & tenang'}</div>
           </div>
         </div>
@@ -78,9 +77,7 @@ export default function InvoicePrintV3({ invoice, items, settings, publicUrl }: 
               padding: '7px 14px', borderRadius: 99,
               fontSize: '.7rem', fontWeight: 700, letterSpacing: '.12em',
               background: st.bg, color: st.text,
-            }}>
-              {statusLabel}
-            </span>
+            }}>{st.label}</span>
           </div>
         </div>
       </div>
@@ -115,9 +112,7 @@ export default function InvoicePrintV3({ invoice, items, settings, publicUrl }: 
           <tbody>
             {items.map((it, i) => (
               <tr key={it.id}>
-                <td style={{ color: '#94a3b8', fontWeight: 700, fontFamily: 'monospace' }}>
-                  {String(i + 1).padStart(2, '0')}
-                </td>
+                <td style={{ color: '#94a3b8', fontWeight: 700, fontFamily: 'monospace' }}>{String(i + 1).padStart(2, '0')}</td>
                 <td><div className="inv3-item-name">{it.description}</div></td>
                 <td style={{ textAlign: 'center', fontWeight: 600 }}>{it.qty}</td>
                 <td className="inv3-num">{formatRupiah(it.unit_price).replace('Rp ', '')}</td>
@@ -137,9 +132,10 @@ export default function InvoicePrintV3({ invoice, items, settings, publicUrl }: 
           <div className="inv3-thanks" style={{ color: primary }}>
             {settings.invoice_thank_you || 'Terima kasih atas kepercayaan Anda.'}
           </div>
+
           {showQr && qrUrl && (
             <div className="inv3-qr">
-              <img src={qrUrl} alt="QR Code" style={{ width: 100, height: 100, borderRadius: 8 }} />
+              <img src={qrUrl} alt="QR Code" style={{ width: 100, height: 100, borderRadius: 8 }} crossOrigin="anonymous" />
               <div style={{ fontSize: '.68rem', color: '#64748b', marginTop: 6, maxWidth: 120 }}>
                 {settings.invoice_qr_caption || 'Scan untuk lihat kwitansi online'}
               </div>

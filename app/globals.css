@@ -1723,3 +1723,51 @@ footer{background:var(--bg-soft);border-top:1px solid var(--line);padding:64px 0
   .inv4-summary{ grid-template-columns: 1fr; gap: 24px; padding: 24px 20px 16px; }
   .inv4-terms-sign{ grid-template-columns: 1fr; gap: 32px; padding: 20px 20px 32px; }
 }
+
+/* ============ QR CODE PRINT SUPPORT ============ */
+.inv3-qr img,
+.inv4-qr {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+@media print {
+  /* QR tetap tampil di PDF */
+  .inv3-qr,
+  .inv3-qr img,
+  .inv4-qr-wrap,
+  .inv4-qr {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    page-break-inside: avoid;
+  }
+
+  /* Logo tetap tampil */
+  .inv3-logo-img,
+  .inv4-logo,
+  .adm-brand-logo {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* Warna tetap muncul */
+  .inv3-band,
+  .inv3-status-bar,
+  .inv4-top-curve,
+  .inv4-bottom-curve,
+  .inv4-summary-total-label,
+  .inv4-summary-total-value,
+  .inv4-paid-stamp {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Sembunyikan tombol */
+  .no-print,
+  .template-switcher,
+  .adm-toggle,
+  .adm-overlay {
+    display: none !important;
+  }
+}
