@@ -10,6 +10,7 @@ const MENU = [
   { href: '/admin/kategori', label: 'Kategori' },
   { href: '/admin/testimoni', label: 'Testimoni' },
   { href: '/admin/faq', label: 'FAQ' },
+  { href: ''/admin/pelanggan-customers', label: 'Pelanggan' },
   { href: '/admin/kwitansi', label: 'Kwitansi' },
   { href: '/admin/pesanan', label: 'Pesanan' },
   { href: '/admin/pelanggan', label: 'Pelanggan' },

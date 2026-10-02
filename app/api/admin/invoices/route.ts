@@ -11,15 +11,23 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
 
   const subtotal = (b.items || []).reduce(
-    (sum: number, it: any) => sum + (it.qty || 0) * (it.unit_price || 0),
-    0
+    (sum: number, it: any) => sum + (it.qty || 0) * (it.unit_price || 0), 0
   );
   const total = Math.max(0, subtotal - (b.discount || 0) + (b.tax || 0));
+
+  // Ambil nomor baru dari RPC (anti-konflik)
+  let invoiceNumber = b.invoice_number;
+  if (!invoiceNumber) {
+    const { data: numData } = await admin.rpc('next_invoice_number');
+    invoiceNumber = numData || `GJS/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/0001`;
+  }
 
   const { data: invoice, error } = await admin
     .from('invoices')
     .insert({
-      invoice_number: b.invoice_number,
+      invoice_number: invoiceNumber,
+      customer_id: b.customer_id || null,
+      customer_id_display: b.customer_id_display || '',
       customer_name: b.customer_name,
       customer_email: b.customer_email || '',
       customer_phone: b.customer_phone || '',
@@ -38,7 +46,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error || !invoice) {
-    return NextResponse.json({ error: error?.message || 'Gagal membuat kwitansi' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Gagal' }, { status: 500 });
   }
 
   const items = (b.items || []).map((it: any) => ({

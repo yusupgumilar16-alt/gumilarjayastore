@@ -118,3 +118,35 @@ export interface Order {
 export interface SettingsMap {
   [key: string]: string;
 }
+// ============ CUSTOMERS (V3) ============
+export type CustomerIdType = 'pln' | 'internet' | 'pdam' | 'telkom' | 'bpjs' | 'gas' | 'air' | 'lainnya';
+
+export interface CustomerId {
+  id: string;
+  customer_id: string;
+  id_type: CustomerIdType;
+  id_label: string;
+  id_number: string;
+  is_primary: boolean;
+  created_at: string;
+}
+
+export interface Customer {
+  id: string;
+  customer_code: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  notes: string;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+  // optional join
+  ids?: CustomerId[];
+}
+
+export interface InvoiceWithCustomer extends Invoice {
+  customer_id_display?: string;
+  customer?: Customer;
+}
