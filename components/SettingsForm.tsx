@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import TemplatePicker from './TemplatePicker';
 import { useRouter } from 'next/navigation';
 
 type Setting = { key: string; value: string };
@@ -23,12 +24,12 @@ const GROUPS: { title: string; keys: string[] }[] = [
     keys: ['stat_customers', 'stat_products', 'stat_rating', 'stat_ontime'],
   },
   {
-    title: 'Kwitansi — Rekening',
+    title: 'Kwitansi Ã¢â‚¬â€ Rekening',
     keys: ['brand_bank_name', 'brand_bank_account', 'brand_bank_holder'],
   },
   {
-    title: 'Kwitansi — Tampilan',
-    keys: ['invoice_footer_note', 'invoice_thank_you', 'invoice_strip_text', 'invoice_primary_color', 'invoice_accent_color'],
+    title: 'Kwitansi Ã¢â‚¬â€ Tampilan',
+    keys: ['invoice_footer_note', 'invoice_thank_you', 'invoice_strip_text', 'invoice_template', 'invoice_primary_color', 'invoice_accent_color'],
   },
 ];
 
@@ -161,7 +162,7 @@ export default function SettingsForm({ initial }: { initial: Setting[] }) {
       }}>
         {saved ? (
           <span style={{ color: '#16a34a', fontWeight: 700, fontSize: '.92rem' }}>
-            ✓ Pengaturan tersimpan
+            Ã¢Å“â€œ Pengaturan tersimpan
           </span>
         ) : (
           <span style={{ color: '#64748b', fontSize: '.82rem' }}>
@@ -169,7 +170,7 @@ export default function SettingsForm({ initial }: { initial: Setting[] }) {
           </span>
         )}
         <button type="submit" className="btn btn-primary" disabled={saving}>
-          {saving ? 'Menyimpan…' : 'Simpan Pengaturan'}
+          {saving ? 'MenyimpanÃ¢â‚¬Â¦' : 'Simpan Pengaturan'}
         </button>
       </div>
     </form>
