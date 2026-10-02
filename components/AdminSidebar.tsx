@@ -12,7 +12,8 @@ const MENU = [
   { href: '/admin/faq', label: 'FAQ' },
   { href: '/admin/pelanggan-customers', label: 'Pelanggan' },
   { href: '/admin/kwitansi', label: 'Kwitansi' },
-  { href: '/admin/pesanan', label: 'Pesanan' },
+  { href: '/admin/pesanan', label: 'Pesanan' },  { href: '/admin/import', label: 'Import Data' },
+
   { href: '/admin/pengaturan', label: 'Pengaturan' },
 ];
 
