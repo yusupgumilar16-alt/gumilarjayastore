@@ -171,37 +171,97 @@ export default function CustomerPicker({ value, onChange, onManualFill }: Props)
               <div style={{ padding: 16, color: '#64748b', fontSize: '.86rem' }}>Memuat…</div>
             )}
 
-            {!loading && results.length > 0 && (
-              <div>
-                {results.slice(0, 30).map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => { onChange(c); setOpen(false); setQuery(''); }}
-                    style={{
-                      width: '100%', textAlign: 'left', padding: '12px 16px',
-                      background: 'transparent', border: 'none',
-                      borderBottom: '1px solid #f1f5f9', cursor: 'pointer',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <div style={{ fontWeight: 700, fontSize: '.9rem', marginBottom: 2 }}>
-                      {c.name}
-                      {c.customer_code && (
-                        <span style={{ color: '#64748b', fontWeight: 500, marginLeft: 8, fontSize: '.78rem', fontFamily: 'monospace' }}>
-                          {c.customer_code}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: '.78rem', color: '#64748b' }}>
-                      {[c.email, c.phone].filter(Boolean).join(' · ') || '—'}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
+           {!loading && results.length > 0 && (
+  <div>
+    {results.slice(0, 30).map((c) => (
+      <button
+        key={c.id}
+        type="button"
+        onClick={() => { onChange(c); setOpen(false); setQuery(''); }}
+        style={{
+          width: '100%', textAlign: 'left', padding: '12px 16px',
+          background: 'transparent', border: 'none',
+          borderBottom: '1px solid #f1f5f9', cursor: 'pointer',
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+      >
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          gap: 8,
+          marginBottom: 4,
+          flexWrap: 'wrap',
+        }}>
+          <span style={{ fontWeight: 700, fontSize: '.9rem' }}>
+            {c.name}
+          </span>
+          {c.customer_code && (
+            <span style={{
+              color: '#2563eb',
+              fontWeight: 600,
+              fontSize: '.72rem',
+              fontFamily: 'monospace',
+              background: '#eff6ff',
+              padding: '2px 8px',
+              borderRadius: 6,
+            }}>
+              {c.customer_code}
+            </span>
+          )}
+        </div>
 
+        {c.ids && c.ids.length > 0 ? (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+            {c.ids.map((id: any) => (
+              <span key={id.id} style={{
+                fontSize: '.7rem',
+                padding: '3px 9px',
+                borderRadius: 99,
+                background: id.id_type === 'pln' ? '#fef3c7'
+                  : id.id_type === 'internet' ? '#dbeafe'
+                  : id.id_type === 'pdam' ? '#d1fae5'
+                  : id.id_type === 'bpjs' ? '#fce7f3'
+                  : id.id_type === 'telkom' ? '#e0e7ff'
+                  : id.id_type === 'gas' ? '#fed7aa'
+                  : '#f1f5f9',
+                color: id.id_type === 'pln' ? '#92400e'
+                  : id.id_type === 'internet' ? '#1e40af'
+                  : id.id_type === 'pdam' ? '#065f46'
+                  : id.id_type === 'bpjs' ? '#9d174d'
+                  : id.id_type === 'telkom' ? '#3730a3'
+                  : id.id_type === 'gas' ? '#9a3412'
+                  : '#475569',
+                fontWeight: 600,
+                fontFamily: 'SF Mono, Consolas, monospace',
+              }}>
+                {id.id_type === 'pln' ? '⚡'
+                  : id.id_type === 'internet' ? '🌐'
+                  : id.id_type === 'pdam' ? '💧'
+                  : id.id_type === 'bpjs' ? '🏥'
+                  : id.id_type === 'telkom' ? '📞'
+                  : id.id_type === 'gas' ? '🔥'
+                  : '📋'}{' '}
+                {id.id_label || 'ID'}: {id.id_number}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: '.72rem', color: '#94a3b8', marginTop: 4, fontStyle: 'italic' }}>
+            Belum ada ID pelanggan terdaftar
+          </div>
+        )}
+
+        {(c.email || c.phone) && (
+          <div style={{ fontSize: '.75rem', color: '#64748b', marginTop: 6 }}>
+            {[c.email, c.phone].filter(Boolean).join(' · ')}
+          </div>
+        )}
+      </button>
+    ))}
+  </div>
+)}
             {!loading && results.length === 0 && (
               <div style={{ padding: 16, color: '#64748b', fontSize: '.86rem', textAlign: 'center' }}>
                 {query ? 'Pelanggan tidak ditemukan' : 'Belum ada pelanggan di database'}
