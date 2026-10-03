@@ -34,10 +34,10 @@ export default async function HomePage() {
   const faqs: Faq[] = faqsRes.data || [];
 
   const heroWords = (settings.hero_title || 'Produk digital & fisik, dipilih satu per satu.').split(/\s+/);
+  const waPhone = settings.contact_whatsapp || '';
 
   return (
     <>
-      {/* HERO — tanpa visual kartu */}
       <section className="hero hero-simple">
         <div className="wrap">
           <div className="hero-simple-inner">
@@ -63,7 +63,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* KATEGORI */}
       {categories.length > 0 && (
         <section className="section" id="kategori">
           <div className="wrap">
@@ -84,7 +83,6 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* PRODUK */}
       {products.length > 0 && (
         <section className="section" style={{ paddingTop: 0 }}>
           <div className="wrap">
@@ -96,13 +94,14 @@ export default async function HomePage() {
               <Link href="/produk" className="btn btn-ghost">Lihat semua →</Link>
             </div>
             <div className="prod-grid">
-              {products.map((p) => <ProductCard key={p.id} product={p} />)}
+              {products.map((p) => (
+                <ProductCard key={p.id} product={p} waPhone={waPhone} />
+              ))}
             </div>
           </div>
         </section>
       )}
 
-      {/* KENAPA */}
       <section className="section why">
         <div className="wrap">
           <div className="section-head">
@@ -118,7 +117,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* TESTIMONI */}
       {testimonials.length > 0 && (
         <section className="section">
           <div className="wrap">
@@ -144,7 +142,6 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* FAQ */}
       {faqs.length > 0 && (
         <section className="section" id="faq" style={{ background: 'var(--bg-soft)', borderTop: '1px solid var(--line)' }}>
           <div className="wrap">
@@ -157,7 +154,6 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* NEWSLETTER */}
       <section className="section">
         <div className="wrap">
           <div className="cta-block">
@@ -168,10 +164,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* WA POPUP */}
       <WhatsAppPopup
         enabled={settings.wa_popup_enabled !== 'false'}
-        phone={settings.contact_whatsapp || ''}
+        phone={waPhone}
         title={settings.wa_popup_title || 'Butuh bantuan?'}
         subtitle={settings.wa_popup_subtitle || 'Chat kami via WhatsApp — balas cepat di jam kerja'}
         buttonLabel={settings.wa_popup_button || 'Chat via WhatsApp'}
