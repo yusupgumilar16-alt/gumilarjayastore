@@ -6,7 +6,13 @@ export default function Nav({ settings }: { settings: SettingsMap }) {
     <header className="nav">
       <div className="wrap nav-inner">
         <Link href="/" className="brand">
-          <span className="brand-mark">GJ</span>
+
+          {settings.brand_logo_url ? (
+  <img src={settings.brand_logo_url} alt="Logo" className="brand-logo-img" />
+) : (
+  <span className="brand-mark">GJ</span>
+)}
+          
           <span className="brand-text">
             <b>{settings.site_name || 'Gumilar Jaya'}</b>
             <small>Store</small>
