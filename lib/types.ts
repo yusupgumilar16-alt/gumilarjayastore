@@ -1,5 +1,5 @@
 // ============================================================
-//  Types — Gumilar Jaya Store
+//  Types â€” Gumilar Jaya Store
 // ============================================================
 
 // ============ PRODUCTS & CATEGORIES ============
@@ -32,6 +32,9 @@ export interface Product {
   download_url: string | null;
   is_featured: boolean;
   is_new: boolean;
+  service_type?: string | null;
+  requires_manual_price?: boolean;
+  default_admin_fee?: number;
   created_at: string;
   updated_at: string;
   // optional join
