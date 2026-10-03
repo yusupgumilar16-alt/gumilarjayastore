@@ -1,5 +1,5 @@
 // ============================================================
-//  Types â€” Gumilar Jaya Store
+//  Types Ã¢â‚¬â€ Gumilar Jaya Store
 // ============================================================
 
 // ============ PRODUCTS & CATEGORIES ============
@@ -108,6 +108,7 @@ export interface Customer {
   created_at: string;
   updated_at: string;
   ids?: CustomerId[];
+  customer_ids?: CustomerId[];
 }
 
 // ============ INVOICES ============
