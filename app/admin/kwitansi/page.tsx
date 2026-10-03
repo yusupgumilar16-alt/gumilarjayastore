@@ -5,7 +5,7 @@ import { formatRupiah, formatDate } from '@/lib/utils';
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Kwitansi' };
 
-export default async function AdminInvoicesPage() {
+export default async function InvoicesPage() {
   const supabase = createAdminClient();
   const { data: invoices } = await supabase
     .from('invoices')
@@ -17,49 +17,53 @@ export default async function AdminInvoicesPage() {
   return (
     <>
       <div className="admin-card-head">
-        <h1 style={{ margin: 0 }}>Kwitansi ({list.length})</h1>
+        <h1>Kwitansi <span style={{ color: '#94a3b8', fontWeight: 500 }}>({list.length})</span></h1>
         <Link href="/admin/kwitansi/baru" className="btn btn-primary">+ Buat Kwitansi</Link>
       </div>
 
       <div className="admin-card">
         {list.length === 0 ? (
-          <p style={{ color: 'var(--muted)', padding: '40px 0', textAlign: 'center' }}>
-            Belum ada kwitansi. Klik &quot;Buat Kwitansi&quot; untuk memulai.
+          <p style={{ color: '#64748b', padding: '40px 0', textAlign: 'center' }}>
+            Belum ada kwitansi.
           </p>
         ) : (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Nomor</th>
-                <th>Tanggal</th>
-                <th>Pelanggan</th>
-                <th>Total</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((inv) => (
-                <tr key={inv.id}>
-                  <td>
-                    <Link href={`/admin/kwitansi/${inv.id}`} style={{ color: 'var(--blue)', fontWeight: 600 }}>
-                      {inv.invoice_number}
-                    </Link>
-                  </td>
-                  <td>{formatDate(inv.invoice_date)}</td>
-                  <td>
-                    <b>{inv.customer_name}</b>
-                    {inv.customer_email && <><br /><small style={{ color: 'var(--muted)' }}>{inv.customer_email}</small></>}
-                  </td>
-                  <td><b>{formatRupiah(inv.total)}</b></td>
-                  <td><span className={`status-badge status-${inv.status}`}>{inv.status}</span></td>
-                  <td style={{ textAlign: 'right' }}>
-                    <Link href={`/admin/kwitansi/${inv.id}`} className="btn btn-ghost btn-icon">Lihat</Link>
-                  </td>
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Nomor</th>
+                  <th>Tanggal</th>
+                  <th>Pelanggan</th>
+                  <th style={{ textAlign: 'right' }}>Total</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Aksi</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {list.map((inv: any) => (
+                  <tr key={inv.id}>
+                    <td>
+                      <Link href={`/admin/kwitansi/${inv.id}`} style={{ color: '#2563eb', fontWeight: 600 }}>
+                        {inv.invoice_number}
+                      </Link>
+                    </td>
+                    <td>{formatDate(inv.invoice_date)}</td>
+                    <td><b>{inv.customer_name}</b></td>
+                    <td style={{ textAlign: 'right', fontWeight: 700 }}>{formatRupiah(inv.total)}</td>
+                    <td><span className={`status-badge status-${inv.status}`}>{inv.status}</span></td>
+                    <td style={{ textAlign: 'right' }}>
+                      <Link href={`/admin/kwitansi/${inv.id}`} style={{
+                        display: 'inline-grid', placeItems: 'center',
+                        width: 34, height: 34, borderRadius: 9,
+                        background: '#eff6ff', color: '#2563eb',
+                        border: '1px solid #bfdbfe', textDecoration: 'none', fontSize: '.9rem',
+                      }}>👁</Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </>

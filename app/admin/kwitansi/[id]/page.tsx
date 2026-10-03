@@ -4,7 +4,6 @@ import { headers } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getSettings } from '@/lib/settings';
 import InvoicePrint from '@/components/InvoicePrint';
-import InvoiceActions from '@/components/InvoiceActions';
 import PrintButton from '@/components/PrintButton';
 import TemplateSwitcher from '@/components/TemplateSwitcher';
 import type { Invoice, InvoiceItem } from '@/lib/types';
@@ -38,39 +37,22 @@ export default async function AdminInvoiceDetail({
 
   return (
     <>
-      <style>{`
-        @media print{
-          .adm-sidebar,.adm-topbar,.no-print{display:none!important}
-          body,html{background:#fff!important}
-          .adm-body{padding:0!important}
-          .adm{background:#fff!important}
-        }
-      `}</style>
-
       <div className="admin-card-head no-print">
         <h1>Kwitansi {invoice.invoice_number}</h1>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Link href="/admin/kwitansi" className="btn btn-ghost">← Kembali</Link>
-          <Link href={`/admin/kwitansi/${invoice.id}/edit`} className="btn btn-ghost">Edit</Link>
           <PrintButton />
         </div>
       </div>
 
       <TemplateSwitcher current={settings.invoice_template || 'v3'} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 340px', gap: 24, alignItems: 'start' }}>
-        <div>
-          <InvoicePrint
-            invoice={invoice as Invoice}
-            items={(items || []) as InvoiceItem[]}
-            settings={settings}
-            publicUrl={publicUrl}
-          />
-        </div>
-        <div className="no-print">
-          <InvoiceActions invoice={invoice as Invoice} />
-        </div>
-      </div>
+      <InvoicePrint
+        invoice={invoice as Invoice}
+        items={(items || []) as InvoiceItem[]}
+        settings={settings}
+        publicUrl={publicUrl}
+      />
     </>
   );
 }

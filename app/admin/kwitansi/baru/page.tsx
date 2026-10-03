@@ -12,14 +12,10 @@ export default async function NewInvoicePage() {
   return (
     <>
       <div className="admin-card-head">
-        <h1 style={{ margin: 0 }}>Buat Kwitansi Baru</h1>
+        <h1>Buat Kwitansi Baru</h1>
         <Link href="/admin/kwitansi" className="btn btn-ghost">← Kembali</Link>
       </div>
-      <InvoiceForm
-        initial={null}
-        initialItems={[]}
-        products={products || []}
-      />
+      <InvoiceForm initial={null} initialItems={[]} products={products || []} />
     </>
   );
 }

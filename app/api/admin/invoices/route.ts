@@ -10,44 +10,38 @@ export async function POST(request: Request) {
   const b = await request.json();
   const admin = createAdminClient();
 
-  const subtotal = (b.items || []).reduce(
-    (sum: number, it: any) => sum + (it.qty || 0) * (it.unit_price || 0), 0
-  );
+  const subtotal = (b.items || []).reduce((sum: number, it: any) => sum + (it.qty || 0) * (it.unit_price || 0), 0);
   const total = Math.max(0, subtotal - (b.discount || 0) + (b.tax || 0));
 
-  // Ambil nomor baru dari RPC (anti-konflik)
   let invoiceNumber = b.invoice_number;
   if (!invoiceNumber) {
-    const { data: numData } = await admin.rpc('next_invoice_number');
-    invoiceNumber = numData || `GJS/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/0001`;
+    const now = new Date();
+    const prefix = `GJS/${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/`;
+    const { data: last } = await admin.from('invoices').select('invoice_number')
+      .like('invoice_number', prefix + '%').order('invoice_number', { ascending: false }).limit(1).maybeSingle();
+    let seq = 1;
+    if (last) seq = parseInt(last.invoice_number.split('/')[3] || '0', 10) + 1;
+    invoiceNumber = prefix + String(seq).padStart(4, '0');
   }
 
-  const { data: invoice, error } = await admin
-    .from('invoices')
-    .insert({
-      invoice_number: invoiceNumber,
-      customer_id: b.customer_id || null,
-      customer_id_display: b.customer_id_display || '',
-      customer_name: b.customer_name,
-      customer_email: b.customer_email || '',
-      customer_phone: b.customer_phone || '',
-      customer_address: b.customer_address || '',
-      invoice_date: b.invoice_date,
-      due_date: b.due_date || null,
-      subtotal,
-      discount: b.discount || 0,
-      tax: b.tax || 0,
-      total,
-      status: b.status || 'draft',
-      payment_method: b.payment_method || '',
-      notes: b.notes || '',
-    })
-    .select()
-    .single();
+  const { data: invoice, error } = await admin.from('invoices').insert({
+    invoice_number: invoiceNumber,
+    customer_name: b.customer_name,
+    customer_email: b.customer_email || '',
+    customer_phone: b.customer_phone || '',
+    customer_address: b.customer_address || '',
+    invoice_date: b.invoice_date,
+    due_date: b.due_date || null,
+    subtotal,
+    discount: b.discount || 0,
+    tax: b.tax || 0,
+    total,
+    status: b.status || 'draft',
+    payment_method: b.payment_method || '',
+    notes: b.notes || '',
+  }).select().single();
 
-  if (error || !invoice) {
-    return NextResponse.json({ error: error?.message || 'Gagal' }, { status: 500 });
-  }
+  if (error || !invoice) return NextResponse.json({ error: error?.message || 'Gagal' }, { status: 500 });
 
   const items = (b.items || []).map((it: any) => ({
     invoice_id: invoice.id,
