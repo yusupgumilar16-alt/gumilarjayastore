@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { getSettings } from '@/lib/settings';
 import type { Product } from '@/lib/types';
 import ProductCard from '@/components/ProductCard';
 
@@ -13,6 +14,7 @@ export default async function ProductsPage({
   searchParams: SearchParams;
 }) {
   const supabase = createClient();
+  const settings = await getSettings();
   const filter = searchParams.filter || 'all';
 
   let query = supabase
@@ -38,6 +40,8 @@ export default async function ProductsPage({
     { key: 'fisik', label: 'Fisik' },
     { key: 'baru', label: 'Terbaru' },
   ];
+
+  const waPhone = settings.contact_whatsapp || '';
 
   return (
     <section className="section">
@@ -67,7 +71,7 @@ export default async function ProductsPage({
         ) : (
           <div className="prod-grid">
             {products.map((p) => (
-              <ProductCard key={p.id} product={p} />
+              <ProductCard key={p.id} product={p} waPhone={waPhone} />
             ))}
           </div>
         )}
