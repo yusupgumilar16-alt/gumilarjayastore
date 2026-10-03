@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
+import { getSettings } from '@/lib/settings';
 import type { Product } from '@/lib/types';
 import ProductCard from '@/components/ProductCard';
 
@@ -35,6 +36,7 @@ export default async function CategoryPage({
   if (!category) notFound();
 
   const supabase = createClient();
+  const settings = await getSettings();
   const { data } = await supabase
     .from('products')
     .select('*, categories(name)')
@@ -45,6 +47,8 @@ export default async function CategoryPage({
     ...p,
     category_name: p.categories?.name || category.name,
   }));
+
+  const waPhone = settings.contact_whatsapp || '';
 
   return (
     <section className="section">
@@ -65,7 +69,7 @@ export default async function CategoryPage({
         ) : (
           <div className="prod-grid">
             {products.map((p) => (
-              <ProductCard key={p.id} product={p} />
+              <ProductCard key={p.id} product={p} waPhone={waPhone} />
             ))}
           </div>
         )}
