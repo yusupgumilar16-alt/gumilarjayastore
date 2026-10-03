@@ -2374,3 +2374,74 @@ footer{background:var(--bg-soft);border-top:1px solid var(--line);padding:64px 0
   }
   .wa-float { bottom: 16px; right: 16px; width: 54px; height: 54px; }
 }
+/* ============================================================
+   PRODUCT CARD — Tombol Tanya WA
+   ============================================================ */
+.p-ask-wa {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 16px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+  color: #fff;
+  font-weight: 700;
+  font-size: .85rem;
+  text-decoration: none;
+  transition: all .18s cubic-bezier(.22,.7,.3,1);
+  box-shadow: 0 4px 12px rgba(37,211,102,.28);
+  font-family: inherit;
+}
+
+.p-ask-wa:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(37,211,102,.4);
+}
+
+.p-ask-wa svg {
+  flex-shrink: 0;
+}
+
+.p-ask-wa-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #f0fdf4;
+  color: #25D366;
+  border: 1px solid #bbf7d0;
+  text-decoration: none;
+  transition: all .18s;
+  flex-shrink: 0;
+}
+
+.p-ask-wa-icon:hover {
+  background: #25D366;
+  color: #fff;
+  border-color: #25D366;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37,211,102,.35);
+}
+
+.prod-wa-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 24px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+  color: #fff;
+  font-weight: 700;
+  font-size: .95rem;
+  text-decoration: none;
+  box-shadow: 0 6px 20px rgba(37,211,102,.35);
+  transition: all .2s;
+}
+
+.prod-wa-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(37,211,102,.45);
+}
