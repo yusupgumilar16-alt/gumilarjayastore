@@ -84,9 +84,9 @@ export default function CustomerPicker({ value, onChange, onManualFill }: Props)
             {value.email && <div style={{ fontSize: '.82rem', color: '#334155' }}>📧 {value.email}</div>}
             {value.phone && <div style={{ fontSize: '.82rem', color: '#334155' }}>📱 {value.phone}</div>}
             {value.address && <div style={{ fontSize: '.82rem', color: '#334155', marginTop: 2 }}>📍 {value.address}</div>}
-            {value.ids && value.ids.length > 0 && (
+            {value.customer_ids && value.customer_ids.length > 0 && (
               <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {value.ids.map((id: any) => (
+                {value.customer_ids.map((id: any) => (
                   <span key={id.id} style={{
                     fontSize: '.7rem', padding: '3px 10px', borderRadius: 99,
                     background: '#fff', border: '1px solid #bae6fd',
@@ -212,9 +212,9 @@ export default function CustomerPicker({ value, onChange, onManualFill }: Props)
           )}
         </div>
 
-        {c.ids && c.ids.length > 0 ? (
+        {c.customer_ids && c.customer_ids.length > 0 ? (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-            {c.ids.map((id: any) => (
+            {c.customer_ids.map((id: any) => (
               <span key={id.id} style={{
                 fontSize: '.7rem',
                 padding: '3px 9px',
