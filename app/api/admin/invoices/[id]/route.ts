@@ -18,7 +18,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     }
 
     const subtotal = (b.items || []).reduce((sum: number, it: any) => sum + (it.qty || 0) * (it.unit_price || 0), 0);
-    const total = Math.max(0, subtotal - (b.discount || 0) + (b.tax || 0));
+    const adminFee = parseInt(b.admin_fee) || 0;
+    const total = Math.max(0, subtotal - (b.discount || 0) + adminFee);
 
     const { error } = await admin.from('invoices').update({
       invoice_number: b.invoice_number,
@@ -30,10 +31,11 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       due_date: b.due_date || null,
       subtotal,
       discount: b.discount || 0,
-      tax: b.tax || 0,
+      tax: adminFee,
       total,
       status: b.status || 'draft',
       payment_method: b.payment_method || '',
+      payment_type: b.payment_type || 'tunai',
       notes: b.notes || '',
     }).eq('id', params.id);
 
@@ -47,6 +49,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       qty: it.qty || 1,
       unit_price: it.unit_price || 0,
       subtotal: (it.qty || 1) * (it.unit_price || 0),
+      admin_fee: parseInt(it.admin_fee) || 0,
+      penalty: parseInt(it.penalty) || 0,
     }));
     if (items.length > 0) await admin.from('invoice_items').insert(items);
 
