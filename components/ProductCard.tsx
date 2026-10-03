@@ -18,14 +18,12 @@ export default function ProductCard({ product, waPhone }: Props) {
   const isDigital = product.type === 'digital';
   const isPriceZero = !product.price || product.price === 0;
 
-  // URL produk — pakai path relatif, fallback ke slug
   const productUrl = `/produk/${product.slug}`;
 
-  // Bangun pesan WA
   const waMessage = `Halo, saya ingin bertanya tentang produk ini:
 
-📦 *${product.name}*
-🔗 ${productUrl}${product.category_name ? `\n📁 Kategori: ${product.category_name}` : ''}
+*${product.name}*
+${productUrl}${product.category_name ? `\nKategori: ${product.category_name}` : ''}
 
 Apakah produk ini tersedia? Mohon informasi lebih lanjut. Terima kasih.`;
 
@@ -63,7 +61,6 @@ Apakah produk ini tersedia? Mohon informasi lebih lanjut. Terima kasih.`;
 
         <div className="p-foot">
           {isPriceZero ? (
-            // Harga 0 — tampilkan tombol Tanya WA saja
             <a
               href={waLink}
               target="_blank"
@@ -71,12 +68,11 @@ Apakah produk ini tersedia? Mohon informasi lebih lanjut. Terima kasih.`;
               className="p-ask-wa"
             >
               <svg width="14" height="14" viewBox="0 0 32 32" fill="currentColor">
-                <path d="M16.004 2C8.28 2 2 8.28 2 16.004c0 2.463.65 4.777 1.79 6.784L2 30l7.383-1.762A13.94 13.94 0 0 0 16.004 30C23.72 30 30 23.72 30 16.004S23.72 2 16.004 2z"/>
+                <path d="M16.004 2C8.28 2 2 8.28 2 16.004c0 2.463.65 4.777 1.79 6.784L2 30l7.383-1.762A13.94 13.94 0 0 0 16.004 30C23.72 30 30 23.72 30 16.004S23.72 2 16.004 2zm0 25.5a11.44 11.44 0 0 1-5.83-1.596l-.418-.248-4.377 1.045 1.07-4.257-.272-.44A11.44 11.44 0 0 1 4.5 16.004c0-6.343 5.16-11.504 11.504-11.504s11.5 5.16 11.5 11.504S22.347 27.5 16.004 27.5z"/>
               </svg>
               Tanyakan Produk Ini
             </a>
           ) : (
-            // Harga ada — tampilkan harga + tombol WA kecil
             <>
               <div className="p-price">
                 {product.discount_price ? (
@@ -97,7 +93,7 @@ Apakah produk ini tersedia? Mohon informasi lebih lanjut. Terima kasih.`;
                 title="Tanya via WhatsApp"
               >
                 <svg width="16" height="16" viewBox="0 0 32 32" fill="currentColor">
-                  <path d="M16.004 2C8.28 2 2 8.28 2 16.004c0 2.463.65 4.777 1.79 6.784L2 30l7.383-1.762A13.94 13.94 0 0 0 16.004 30C23.72 30 30 23.72 30 16.004S23.72 2 16.004 2z"/>
+                  <path d="M16.004 2C8.28 2 2 8.28 2 16.004c0 2.463.65 4.777 1.79 6.784L2 30l7.383-1.762A13.94 13.94 0 0 0 16.004 30C23.72 30 30 23.72 30 16.004S23.72 2 16.004 2zm0 25.5a11.44 11.44 0 0 1-5.83-1.596l-.418-.248-4.377 1.045 1.07-4.257-.272-.44A11.44 11.44 0 0 1 4.5 16.004c0-6.343 5.16-11.504 11.504-11.504s11.5 5.16 11.5 11.504S22.347 27.5 16.004 27.5z"/>
                 </svg>
               </a>
             </>
