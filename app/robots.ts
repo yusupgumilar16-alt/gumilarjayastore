@@ -5,7 +5,12 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/api/', '/admin/'],
+      disallow: [
+        '/api/',
+        '/admin/',
+        '/login',
+        '/invoice/',
+      ],
     },
     sitemap: 'https://gumilarjaya.store/sitemap.xml',
   };
