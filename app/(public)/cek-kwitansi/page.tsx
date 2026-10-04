@@ -1,5 +1,11 @@
 import CheckInvoiceForm from '@/components/CheckInvoiceForm';
+import type { Metadata } from 'next';
 
+export const metadata: Metadata = {
+  title: 'Cek Kwitansi',
+  description: 'Cek kwitansi pembayaran Anda di Gumilar Jaya Store dengan nomor kwitansi.',
+  alternates: { canonical: '/cek-kwitansi' },
+};
 export const metadata = { title: 'Cek Kwitansi' };
 
 export default function CheckInvoicePage() {
