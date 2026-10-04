@@ -6,7 +6,6 @@ export const metadata: Metadata = {
   description: 'Cek kwitansi pembayaran Anda di Gumilar Jaya Store dengan nomor kwitansi.',
   alternates: { canonical: '/cek-kwitansi' },
 };
-export const metadata = { title: 'Cek Kwitansi' };
 
 export default function CheckInvoicePage() {
   return (
@@ -31,7 +30,7 @@ export default function CheckInvoicePage() {
         </div>
 
         <p style={{ textAlign: 'center', marginTop: 24, fontSize: '.82rem', color: 'var(--muted)' }}>
-          Nomor kwitansi berbentuk seperti <b>INV/2026/10/0001</b>
+          Nomor kwitansi berbentuk seperti <b>GJS/2026/10/0001</b>
         </p>
       </div>
     </section>
