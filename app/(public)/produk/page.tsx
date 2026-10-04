@@ -3,7 +3,13 @@ import { createClient } from '@/lib/supabase/server';
 import { getSettings } from '@/lib/settings';
 import type { Product } from '@/lib/types';
 import ProductCard from '@/components/ProductCard';
+import type { Metadata } from 'next';
 
+export const metadata: Metadata = {
+  title: 'Katalog Produk',
+  description: 'Jelajahi semua produk digital dan fisik di Gumilar Jaya Store. Template, e-book, apparel, kopi specialty, dan lainnya.',
+  alternates: { canonical: '/produk' },
+};
 export const dynamic = 'force-dynamic';
 
 type SearchParams = { filter?: string };
