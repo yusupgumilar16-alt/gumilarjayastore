@@ -5,7 +5,26 @@ import { createClient } from '@/lib/supabase/server';
 import { getSettings } from '@/lib/settings';
 import type { Product } from '@/lib/types';
 import ProductCard from '@/components/ProductCard';
+import type { Metadata } from 'next';
+// ... import lain tetap
 
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const cat = await getCategory(params.slug);
+  if (!cat) return { title: 'Kategori tidak ditemukan' };
+  return {
+    title: cat.name,
+    description: cat.description?.slice(0, 160) || `Kategori ${cat.name} di Gumilar Jaya Store`,
+    alternates: { canonical: `/kategori/${cat.slug}` },
+    openGraph: {
+      title: cat.name,
+      description: cat.description,
+    },
+  };
+}
 export const dynamic = 'force-dynamic';
 
 async function getCategory(slug: string) {
