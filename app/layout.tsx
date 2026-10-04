@@ -10,6 +10,12 @@ export const viewport: Viewport = {
   initialScale: 1,
   themeColor: '#2563eb',
 };
+export const metadata: Metadata = {
+  // ... metadata lain ...
+  verification: {
+    google: 'abc123xyz-kode-dari-search-console',
+  },
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://gumilarjaya.store'),
