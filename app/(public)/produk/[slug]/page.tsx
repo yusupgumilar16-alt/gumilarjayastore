@@ -5,7 +5,51 @@ import { createClient } from '@/lib/supabase/server';
 import { formatRupiah } from '@/lib/utils';
 import type { Product } from '@/lib/types';
 import ProductCard from '@/components/ProductCard';
+// ⬇️ IMPORT
+import type { Metadata } from 'next';
+import { createClient } from '@/lib/supabase/server';
 
+// ⬇️ FUNCTION UNTUK AMBIL DATA (kalau perlu)
+async function getProduct(slug: string) {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('products')
+    .select('*')
+    .eq('slug', slug)
+    .maybeSingle();
+  return data;
+}
+
+// ⬇️ METADATA DI SINI (sebelum component)
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const product = await getProduct(params.slug);
+  if (!product) return { title: 'Produk Tidak Ditemukan' };
+
+  return {
+    title: product.name,
+    description: product.description?.slice(0, 160),
+    alternates: { canonical: `/produk/${product.slug}` },
+    openGraph: {
+      title: product.name,
+      description: product.description,
+      images: product.image ? [{ url: product.image }] : [],
+    },
+  };
+}
+
+// ⬇️ COMPONENT DI BAWAH
+export default async function ProductDetailPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  const product = await getProduct(params.slug);
+  // ...
+}
 export const dynamic = 'force-dynamic';
 
 async function getProduct(slug: string) {
