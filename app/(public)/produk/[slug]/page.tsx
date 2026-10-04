@@ -5,51 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { formatRupiah } from '@/lib/utils';
 import type { Product } from '@/lib/types';
 import ProductCard from '@/components/ProductCard';
-// ⬇️ IMPORT
-import type { Metadata } from 'next';
-import { createClient } from '@/lib/supabase/server';
 
-// ⬇️ FUNCTION UNTUK AMBIL DATA (kalau perlu)
-async function getProduct(slug: string) {
-  const supabase = createClient();
-  const { data } = await supabase
-    .from('products')
-    .select('*')
-    .eq('slug', slug)
-    .maybeSingle();
-  return data;
-}
-
-// ⬇️ METADATA DI SINI (sebelum component)
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string };
-}): Promise<Metadata> {
-  const product = await getProduct(params.slug);
-  if (!product) return { title: 'Produk Tidak Ditemukan' };
-
-  return {
-    title: product.name,
-    description: product.description?.slice(0, 160),
-    alternates: { canonical: `/produk/${product.slug}` },
-    openGraph: {
-      title: product.name,
-      description: product.description,
-      images: product.image ? [{ url: product.image }] : [],
-    },
-  };
-}
-
-// ⬇️ COMPONENT DI BAWAH
-export default async function ProductDetailPage({
-  params,
-}: {
-  params: { slug: string };
-}) {
-  const product = await getProduct(params.slug);
-  // ...
-}
 export const dynamic = 'force-dynamic';
 
 async function getProduct(slug: string) {
@@ -79,6 +35,12 @@ export async function generateMetadata({
   return {
     title: product.name,
     description: product.description?.slice(0, 160),
+    alternates: { canonical: `/produk/${product.slug}` },
+    openGraph: {
+      title: product.name,
+      description: product.description,
+      images: product.image ? [{ url: product.image }] : [],
+    },
   };
 }
 
@@ -104,9 +66,46 @@ export default async function ProductDetailPage({
   }));
 
   const isDigital = product.type === 'digital';
+  const isPriceZero = !product.price || product.price === 0;
+
+  // JSON-LD Structured Data untuk SEO
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    image: product.image || undefined,
+    description: product.description,
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'IDR',
+      price: product.price,
+      availability: product.stock > 0
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+    },
+  };
+
+  function cleanPhone(p: string): string {
+    let n = String(p).replace(/[^\d]/g, '');
+    if (n.startsWith('0')) n = '62' + n.slice(1);
+    if (!n.startsWith('62')) n = '62' + n;
+    return n;
+  }
+
+  const waPhone = process.env.NEXT_PUBLIC_WHATSAPP || '';
+  const waMessage = `Halo, saya tertarik dengan produk ini:\n\n*${product.name}*\nHarga: ${isPriceZero ? 'Hubungi untuk harga' : formatRupiah(product.discount_price || product.price)}\n\nMohon info lebih lanjut.`;
+  const waLink = waPhone
+    ? `https://wa.me/${cleanPhone(waPhone)}?text=${encodeURIComponent(waMessage)}`
+    : '#';
 
   return (
     <>
+      {/* JSON-LD Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       <section className="section">
         <div className="wrap detail">
           <div className="detail-visual">
@@ -150,39 +149,38 @@ export default async function ProductDetailPage({
 
             <p style={{ marginBottom: 28, fontSize: '1rem' }}>{product.description}</p>
 
-            <div className="detail-price">
-              {product.discount_price ? (
-                <>
-                  <b>{formatRupiah(product.discount_price)}</b>
-                  <s>{formatRupiah(product.price)}</s>
-                </>
-              ) : (
-                <b>{formatRupiah(product.price)}</b>
-              )}
-            </div>
+            {!isPriceZero && (
+              <div className="detail-price">
+                {product.discount_price ? (
+                  <>
+                    <b>{formatRupiah(product.discount_price)}</b>
+                    <s>{formatRupiah(product.price)}</s>
+                  </>
+                ) : (
+                  <b>{formatRupiah(product.price)}</b>
+                )}
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <button
-                className="btn btn-primary btn-lg"
-                disabled
-                style={{ opacity: 0.6, cursor: 'not-allowed' }}
-              >
-                {isDigital ? 'Beli & Download' : 'Tambah ke Keranjang'}
-              </button>
               <a
-                href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP || ''}?text=${encodeURIComponent(
-                  `Halo, saya tertarik dengan produk "${product.name}" (${formatRupiah(product.discount_price || product.price)}).`
-                )}`}
+                href={waLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn btn-ghost btn-lg"
+                className="btn btn-primary btn-lg"
+                style={{
+                  background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                }}
               >
-                Tanya via WhatsApp
+                {isPriceZero ? '📱 Tanyakan Produk Ini' : '📱 Tanya via WhatsApp'}
               </a>
             </div>
-            <p style={{ marginTop: 14, fontSize: '.8rem', color: 'var(--muted)' }}>
-              Checkout online akan segera tersedia. Untuk sementara, hubungi kami via WhatsApp.
-            </p>
+
+            {isPriceZero && (
+              <p style={{ marginTop: 14, fontSize: '.82rem', color: 'var(--muted)' }}>
+                Hubungi kami via WhatsApp untuk info harga & ketersediaan.
+              </p>
+            )}
           </div>
         </div>
       </section>
@@ -193,7 +191,7 @@ export default async function ProductDetailPage({
             <h2 style={{ marginBottom: 24 }}>Produk terkait</h2>
             <div className="prod-grid">
               {related.map((p) => (
-                <ProductCard key={p.id} product={p} />
+                <ProductCard key={p.id} product={p} waPhone={waPhone} />
               ))}
             </div>
           </div>
