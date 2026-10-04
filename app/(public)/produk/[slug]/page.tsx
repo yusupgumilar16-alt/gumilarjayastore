@@ -67,6 +67,8 @@ export default async function ProductDetailPage({
 
   const isDigital = product.type === 'digital';
   const isPriceZero = !product.price || product.price === 0;
+  const hasSold = (product.sold || 0) > 0;
+  const hasRating = (product.rating || 0) > 0;
 
   // JSON-LD Structured Data untuk SEO
   const jsonLd = {
@@ -136,16 +138,21 @@ export default async function ProductDetailPage({
               </p>
             )}
 
-            <div className="p-meta" style={{ marginBottom: 20, fontSize: '.9rem' }}>
-              <span className="star">★</span>
-              <span>{product.rating} · {product.sold} terjual</span>
-              {product.stock > 0 && !isDigital && (
-                <>
-                  <span>·</span>
-                  <span>Stok {product.stock}</span>
-                </>
-              )}
-            </div>
+            {/* Rating & Sold — hanya tampil kalau > 0 */}
+            {(hasRating || hasSold) && (
+              <div className="p-meta" style={{ marginBottom: 20, fontSize: '.9rem' }}>
+                {hasRating && <span className="star">★</span>}
+                {hasRating && hasSold && <span>{product.rating} · {product.sold} terjual</span>}
+                {hasRating && !hasSold && <span>{product.rating}</span>}
+                {!hasRating && hasSold && <span>{product.sold} terjual</span>}
+                {product.stock > 0 && !isDigital && (hasRating || hasSold) && (
+                  <>
+                    <span>·</span>
+                    <span>Stok {product.stock}</span>
+                  </>
+                )}
+              </div>
+            )}
 
             <p style={{ marginBottom: 28, fontSize: '1rem' }}>{product.description}</p>
 
