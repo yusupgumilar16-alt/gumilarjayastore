@@ -17,6 +17,8 @@ function cleanPhone(p: string): string {
 export default function ProductCard({ product, waPhone }: Props) {
   const isDigital = product.type === 'digital';
   const isPriceZero = !product.price || product.price === 0;
+  const hasSold = (product.sold || 0) > 0;
+  const hasRating = (product.rating || 0) > 0;
 
   const productUrl = `/produk/${product.slug}`;
 
@@ -54,10 +56,15 @@ Apakah produk ini tersedia? Mohon informasi lebih lanjut. Terima kasih.`;
         </h3>
         <p className="p-desc">{truncate(product.description, 60)}</p>
 
-        <div className="p-meta">
-          <span className="star">★</span>
-          <span>{product.rating} · {product.sold} terjual</span>
-        </div>
+        {/* Rating & Sold — hanya tampil kalau > 0 */}
+        {(hasRating || hasSold) && (
+          <div className="p-meta">
+            {hasRating && <span className="star">★</span>}
+            {hasRating && hasSold && <span>{product.rating} · {product.sold} terjual</span>}
+            {hasRating && !hasSold && <span>{product.rating}</span>}
+            {!hasRating && hasSold && <span>{product.sold} terjual</span>}
+          </div>
+        )}
 
         <div className="p-foot">
           {isPriceZero ? (
