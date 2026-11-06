@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatRupiah, formatDate } from '@/lib/utils';
-import { INVOICE_STATUSES, STATUS_LABEL, isInvoiceStatus } from '@/lib/invoice-calc';
+import { INVOICE_STATUSES, STATUS_LABEL, isInvoiceStatus, type InvoiceStatus } from '@/lib/invoice-calc';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Kwitansi' };
@@ -118,7 +118,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Sea
                     <td style={{ textAlign: 'right', fontWeight: 700 }}>{formatRupiah(inv.total)}</td>
                     <td>
                       <span className={`status-badge status-${inv.status}`}>
-                        {isInvoiceStatus(inv.status) ? STATUS_LABEL[inv.status] : inv.status}
+                        {STATUS_LABEL[inv.status as InvoiceStatus] ?? inv.status}
                       </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
