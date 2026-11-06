@@ -10,24 +10,50 @@ export default function InvoiceActions({ invoice }: { invoice: Invoice }) {
   const [busy, setBusy] = useState(false);
   const isPaid = invoice.status === 'dibayar';
 
+  // Jalankan request dan tampilkan pesan bila gagal. Sebelumnya kegagalan diabaikan:
+  // layar tetap menampilkan "berhasil" padahal status/hapus tidak tersimpan.
+  async function send(url: string, init: RequestInit): Promise<boolean> {
+    try {
+      const res = await fetch(url, init);
+      if (res.ok) return true;
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'Gagal menyimpan perubahan. Coba lagi.');
+    } catch {
+      alert('Koneksi bermasalah. Periksa internet lalu coba lagi.');
+    }
+    return false;
+  }
+
   async function setStatus(status: string) {
+    // Mengubah kwitansi yang sudah Lunas adalah tindakan sensitif -> minta konfirmasi.
+    if (isPaid && status !== 'dibayar') {
+      const label = status === 'batal' ? 'membatalkan' : 'mengembalikan ke status ' + status;
+      if (!confirm(`Kwitansi ${invoice.invoice_number} sudah LUNAS. Yakin ingin ${label}?`)) return;
+    } else if (status === 'batal') {
+      if (!confirm(`Batalkan kwitansi ${invoice.invoice_number}?`)) return;
+    }
     setBusy(true);
-    await fetch(`/api/admin/invoices/${invoice.id}`, {
+    const ok = await send(`/api/admin/invoices/${invoice.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     });
     setBusy(false);
-    router.refresh();
+    if (ok) router.refresh();
   }
 
   async function remove() {
-    if (!confirm(`Hapus kwitansi ${invoice.invoice_number}?`)) return;
+    const msg = isPaid
+      ? `Kwitansi ${invoice.invoice_number} sudah LUNAS. Menghapusnya menghilangkan bukti pembayaran secara permanen (pertimbangkan status Batal). Tetap hapus?`
+      : `Hapus kwitansi ${invoice.invoice_number}?`;
+    if (!confirm(msg)) return;
     setBusy(true);
-    await fetch(`/api/admin/invoices/${invoice.id}`, { method: 'DELETE' });
+    const ok = await send(`/api/admin/invoices/${invoice.id}`, { method: 'DELETE' });
     setBusy(false);
-    router.push('/admin/kwitansi');
-    router.refresh();
+    if (ok) {
+      router.push('/admin/kwitansi');
+      router.refresh();
+    }
   }
 
   return (

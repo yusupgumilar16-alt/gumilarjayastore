@@ -163,7 +163,7 @@ export default function InvoicePrintV4({ invoice, items, settings, publicUrl }: 
             <div className="inv4-summary-row"><span>Discount</span><span className="inv4-summary-val" style={{ color: '#dc2626' }}>− {formatRupiah(invoice.discount)}</span></div>
           )}
           {invoice.tax > 0 && (
-            <div className="inv4-summary-row"><span>Tax</span><span className="inv4-summary-val">{formatRupiah(invoice.tax)}</span></div>
+            <div className="inv4-summary-row"><span>Admin Fee</span><span className="inv4-summary-val">{formatRupiah(invoice.tax)}</span></div>
           )}
           <div className="inv4-summary-total">
             <div className="inv4-summary-total-label" style={{ background: secondary }}>Total</div>

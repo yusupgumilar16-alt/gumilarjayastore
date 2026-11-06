@@ -149,7 +149,7 @@ export default function InvoicePrintV3({ invoice, items, settings, publicUrl }: 
             <div className="inv3-total-row"><span>Diskon</span><b style={{ color: '#dc2626' }}>− {formatRupiah(invoice.discount)}</b></div>
           )}
           {invoice.tax > 0 && (
-            <div className="inv3-total-row"><span>Pajak</span><b>{formatRupiah(invoice.tax)}</b></div>
+            <div className="inv3-total-row"><span>Biaya Admin</span><b>{formatRupiah(invoice.tax)}</b></div>
           )}
           <div className="inv3-grand" style={{ borderColor: primary }}>
             <span>TOTAL</span>

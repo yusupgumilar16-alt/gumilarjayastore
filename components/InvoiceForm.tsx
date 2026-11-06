@@ -1,9 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Invoice, InvoiceItem, Customer } from '@/lib/types';
 import { formatRupiah } from '@/lib/utils';
+import {
+  computeTotals,
+  localDateString,
+  paymentTypeFor,
+  toInt,
+  validateInvoiceInput,
+} from '@/lib/invoice-calc';
 import CustomerPicker from '@/components/CustomerPicker';
 
 type Item = {
@@ -45,10 +52,13 @@ export default function InvoiceForm({
   initialCustomer?: Customer | null;
 }) {
   const router = useRouter();
-  const today = new Date().toISOString().slice(0, 10);
+  // Tanggal lokal (WIB). toISOString() memakai UTC sehingga sebelum jam 07.00 WIB tanggalnya mundur sehari.
+  const today = localDateString();
 
   const [customer, setCustomer] = useState<Customer | null>(initialCustomer || null);
   const [manualMode, setManualMode] = useState(false);
+  // Pada edit, relasi pelanggan lama dipertahankan sampai admin benar-benar menggantinya.
+  const [customerTouched, setCustomerTouched] = useState(false);
 
   const [form, setForm] = useState({
     invoice_number: initial?.invoice_number || '',
@@ -60,10 +70,11 @@ export default function InvoiceForm({
     due_date: initial?.due_date || '',
     status: initial?.status || 'draft',
     payment_method: initial?.payment_method || 'Tunai',
-    payment_type: (initial as any)?.payment_type || 'tunai',
     notes: initial?.notes || '',
     discount: initial?.discount || 0,
-    admin: (initial as any)?.admin_fee || DEFAULT_ADMIN_FEE,
+    // Biaya admin tersimpan di kolom `tax`. Dulu dibaca dari `admin_fee` (kolom milik import) dan
+    // memakai `|| 2500`, sehingga membuka kwitansi lama untuk diedit mengubah biaya admin & total diam-diam.
+    admin: initial ? toInt(initial.tax) : DEFAULT_ADMIN_FEE,
   });
 
   const [items, setItems] = useState<Item[]>(
@@ -89,28 +100,29 @@ export default function InvoiceForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // Auto-fill dari customer terpilih
-  useEffect(() => {
-    if (customer && !manualMode) {
+  const paymentType = paymentTypeFor(form.payment_method);
+  const { subtotal, total } = computeTotals(items, form.discount, form.admin);
+  const discountTooBig = (Number(form.discount) || 0) > subtotal;
+  // Kolom data pelanggan tampil saat input manual, dan selalu saat edit (supaya data di kwitansi bisa dicek/diubah).
+  const showCustomerFields = manualMode || !!initial;
+
+  function handlePickCustomer(c: Customer | null) {
+    setCustomer(c);
+    setCustomerTouched(true);
+    if (c) {
+      setManualMode(false);
       setForm((f) => ({
         ...f,
-        customer_name: customer.name,
-        customer_email: customer.email || '',
-        customer_phone: customer.phone || '',
-        customer_address: customer.address || '',
+        customer_name: c.name,
+        customer_email: c.email || '',
+        customer_phone: c.phone || '',
+        customer_address: c.address || '',
       }));
+    } else if (!initial) {
+      // "Ganti" pada kwitansi baru: kosongkan data lama agar tidak ikut tersimpan tanpa terlihat.
+      setForm((f) => ({ ...f, customer_name: '', customer_email: '', customer_phone: '', customer_address: '' }));
     }
-  }, [customer, manualMode]);
-
-  // Auto-set payment_type berdasarkan payment_method
-  useEffect(() => {
-    const isTunai = form.payment_method === 'Tunai';
-    setForm((f) => ({ ...f, payment_type: isTunai ? 'tunai' : 'non_tunai' }));
-  }, [form.payment_method]);
-
-  const subtotal = items.reduce((s, i) => s + i.qty * i.unit_price, 0);
-  const adminFee = Number(form.admin) || 0;
-  const total = Math.max(0, subtotal - form.discount + adminFee);
+  }
 
   function updateItem(idx: number, patch: Partial<Item>) {
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
@@ -139,21 +151,34 @@ export default function InvoiceForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
     setError('');
-    setSaving(true);
 
-    const cleanItems = items.filter((it) => it.description.trim());
+    const customer_id = customer ? customer.id : customerTouched ? null : (initial?.customer_id ?? null);
+    const customer_id_display = customer
+      ? customer.customer_code || ''
+      : customerTouched ? '' : (initial?.customer_id_display ?? '');
 
     const payload = {
       ...form,
-      customer_id: customer?.id || null,
-      customer_id_display: customer?.customer_code || '',
+      payment_type: paymentType,
+      customer_id,
+      customer_id_display,
       due_date: form.due_date || null,
       discount: Number(form.discount) || 0,
       admin_fee: Number(form.admin) || 0,
-      items: cleanItems,
+      items,
     };
 
+    // Validasi yang sama persis dengan server (lib/invoice-calc.ts), supaya pesan error langsung jelas.
+    const check = validateInvoiceInput(payload);
+    if (!check.ok) {
+      setError(check.error);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    setSaving(true);
     try {
       const url = initial ? `/api/admin/invoices/${initial.id}` : '/api/admin/invoices';
       const method = initial ? 'PATCH' : 'POST';
@@ -162,13 +187,14 @@ export default function InvoiceForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Gagal menyimpan');
       router.push(`/admin/kwitansi/${data.id || initial?.id}`);
       router.refresh();
     } catch (err: any) {
       setError(err.message);
       setSaving(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }
 
@@ -184,40 +210,56 @@ export default function InvoiceForm({
         </div>
       )}
 
+      {initial?.status === 'dibayar' && (
+        <div style={{
+          padding: '12px 16px', borderRadius: 9,
+          background: '#fef3c7', color: '#92400e',
+          fontSize: '.84rem', marginBottom: 20, lineHeight: 1.5,
+        }}>
+          Kwitansi ini sudah berstatus <b>Lunas</b>. Mengubah item, diskon, atau biaya admin akan mengubah
+          nilai bukti pembayaran yang mungkin sudah diterima pelanggan.
+        </div>
+      )}
+
       {/* === PELANGGAN === */}
       <div style={{ marginBottom: 24 }}>
         <h3 style={{ marginBottom: 12, fontSize: '1rem' }}>Pelanggan</h3>
         <CustomerPicker
           value={customer}
-          onChange={(c) => {
-            setCustomer(c);
-            setManualMode(!c);
-          }}
+          onChange={handlePickCustomer}
           onManualFill={() => {
             setCustomer(null);
+            setCustomerTouched(true);
             setManualMode(true);
           }}
         />
 
-        {manualMode && (
-          <div className="admin-form-grid" style={{ marginTop: 16 }}>
-            <div>
-              <label>Nama Pelanggan *</label>
-              <input type="text" value={form.customer_name}
-                onChange={(e) => setForm({ ...form, customer_name: e.target.value })} required />
-              <label>Email</label>
-              <input type="email" value={form.customer_email}
-                onChange={(e) => setForm({ ...form, customer_email: e.target.value })} />
+        {showCustomerFields && (
+          <>
+            {initial && (
+              <div style={{ marginTop: 12, fontSize: '.76rem', color: '#64748b' }}>
+                Data di bawah inilah yang tercetak di kwitansi (salinan saat kwitansi dibuat).
+              </div>
+            )}
+            <div className="admin-form-grid" style={{ marginTop: 12 }}>
+              <div>
+                <label>Nama Pelanggan *</label>
+                <input type="text" value={form.customer_name}
+                  onChange={(e) => setForm({ ...form, customer_name: e.target.value })} required />
+                <label>Email</label>
+                <input type="email" value={form.customer_email}
+                  onChange={(e) => setForm({ ...form, customer_email: e.target.value })} />
+              </div>
+              <div>
+                <label>Telepon</label>
+                <input type="text" value={form.customer_phone}
+                  onChange={(e) => setForm({ ...form, customer_phone: e.target.value })} />
+                <label>Alamat</label>
+                <textarea rows={2} value={form.customer_address}
+                  onChange={(e) => setForm({ ...form, customer_address: e.target.value })} />
+              </div>
             </div>
-            <div>
-              <label>Telepon</label>
-              <input type="text" value={form.customer_phone}
-                onChange={(e) => setForm({ ...form, customer_phone: e.target.value })} />
-              <label>Alamat</label>
-              <textarea rows={2} value={form.customer_address}
-                onChange={(e) => setForm({ ...form, customer_address: e.target.value })} />
-            </div>
-          </div>
+          </>
         )}
       </div>
 
@@ -229,14 +271,14 @@ export default function InvoiceForm({
             <label>Nomor Kwitansi</label>
             <input type="text" value={form.invoice_number}
               onChange={(e) => setForm({ ...form, invoice_number: e.target.value })}
-              placeholder="Akan dibuat otomatis kalau kosong" />
+              placeholder={initial ? 'Nomor kwitansi' : 'Akan dibuat otomatis kalau kosong'} />
 
             <label>Tanggal</label>
             <input type="date" value={form.invoice_date}
               onChange={(e) => setForm({ ...form, invoice_date: e.target.value })} required />
 
             <label>Jatuh Tempo</label>
-            <input type="date" value={form.due_date}
+            <input type="date" value={form.due_date} min={form.invoice_date}
               onChange={(e) => setForm({ ...form, due_date: e.target.value })} />
           </div>
           <div>
@@ -262,9 +304,9 @@ export default function InvoiceForm({
               padding: '11px 14px', border: '1px solid #e2e8f0',
               borderRadius: 10, background: '#f8fafc',
               fontSize: '.85rem', fontWeight: 700,
-              color: form.payment_type === 'tunai' ? '#059669' : '#2563eb',
+              color: paymentType === 'tunai' ? '#059669' : '#2563eb',
             }}>
-              {form.payment_type === 'tunai' ? '💵 TUNAI' : '💳 NON TUNAI'}
+              {paymentType === 'tunai' ? '💵 TUNAI' : '💳 NON TUNAI'}
             </div>
           </div>
         </div>
@@ -351,7 +393,15 @@ export default function InvoiceForm({
             <label>Diskon (Rp)</label>
             <input type="number" min="0" value={form.discount}
               onChange={(e) => setForm({ ...form, discount: parseInt(e.target.value) || 0 })}
-              style={{ width: '100%', padding: '11px 14px', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: '.9rem' }} />
+              style={{
+                width: '100%', padding: '11px 14px', borderRadius: 10, fontSize: '.9rem',
+                border: `1px solid ${discountTooBig ? '#f87171' : '#e2e8f0'}`,
+              }} />
+            {discountTooBig && (
+              <div style={{ fontSize: '.74rem', color: '#dc2626', marginTop: -4 }}>
+                Diskon melebihi subtotal — kurangi sebelum menyimpan.
+              </div>
+            )}
 
             <div style={{
               display: 'flex', justifyContent: 'space-between',
