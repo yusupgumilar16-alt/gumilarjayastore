@@ -30,10 +30,16 @@ export default async function AdminInvoiceDetail({
     .order('id');
 
   const settings = await getSettings();
+  // Link/QR di kwitansi cetak harus selalu domain resmi, bukan domain tempat admin kebetulan membuka halaman
+  // (mis. URL preview Vercel). Pakai NEXT_PUBLIC_SITE_URL bila sudah diisi dengan domain sungguhan;
+  // jika kosong / masih localhost, pakai host permintaan seperti sebelumnya.
+  const envBase = (process.env.NEXT_PUBLIC_SITE_URL || '').trim().replace(/\/+$/, '');
+  const envUsable = envBase !== '' && !/localhost|127\.0\.0\.1/.test(envBase);
   const h = headers();
   const host = h.get('host') || 'localhost:3000';
   const proto = host.includes('localhost') ? 'http' : 'https';
-  const publicUrl = `${proto}://${host}/invoice/${invoice.public_token}`;
+  const baseUrl = envUsable ? envBase : `${proto}://${host}`;
+  const publicUrl = `${baseUrl}/invoice/${invoice.public_token}`;
 
   return (
     <>
